@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <ItemGroup>
+    <ProjectReference Include="../FSCM.Traceability.Application/FSCM.Traceability.Application.csproj" />
+    <ProjectReference Include="../FSCM.Traceability.Infrastructure/FSCM.Traceability.Infrastructure.csproj" />
+    <ProjectReference Include="../FSCM.Traceability.Persistence/FSCM.Traceability.Persistence.csproj" />
+  </ItemGroup>
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+</Project>
