@@ -5,6 +5,7 @@
 **/node_modules/
 **/dist/
 *.tsbuildinfo
+appsettings.json
 .env
 .env.local
 *.user
