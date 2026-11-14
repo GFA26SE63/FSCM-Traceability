@@ -1,44 +1,17 @@
 trigger: none
 pr: none
 
-parameters:
-  - name: imageTag
-    displayName: Immutable container image tag
-    type: string
-    default: $(Build.BuildId)
-
 variables:
-  vmImage: ubuntu-latest
-  dockerfilePath: $(Build.SourcesDirectory)/Dockerfile
+  vmImage: windows-latest
+  publishDirectory: $(Build.ArtifactStagingDirectory)\publish
+  packagePath: $(Build.ArtifactStagingDirectory)\fscm-traceability.zip
 
 stages:
-  - stage: Validate
-    displayName: Validate
-    jobs:
-      - job: Test
-        pool:
-          vmImage: $(vmImage)
-        steps:
-          - task: UseDotNet@2
-            inputs:
-              packageType: sdk
-              version: 10.x
-          - script: dotnet restore FSCM.Traceability.slnx
-            displayName: Restore
-          - script: dotnet build FSCM.Traceability.slnx --configuration Release --no-restore
-            displayName: Build
-          - script: dotnet test FSCM.Traceability.slnx --configuration Release --no-build
-            displayName: Test .NET
-          - script: node --test tests/batch-details.test.cjs
-            displayName: Test web UI regression
-
   - stage: Deploy
-    displayName: Build image and deploy
-    dependsOn: Validate
-    condition: succeeded()
+    displayName: Validate, publish, and deploy
     jobs:
       - deployment: AppService
-        displayName: Deploy Azure App Service container
+        displayName: Deploy Traceability code
         environment: traceability-production
         pool:
           vmImage: $(vmImage)
@@ -47,18 +20,33 @@ stages:
             deploy:
               steps:
                 - checkout: self
-                - task: Docker@2
-                  displayName: Build and push image to ACR
+                - task: UseDotNet@2
+                  displayName: Install .NET SDK
                   inputs:
-                    command: buildAndPush
-                    repository: $(imageRepository)
-                    dockerfile: $(dockerfilePath)
-                    containerRegistry: $(dockerRegistryServiceConnection)
-                    tags: |
-                      ${{ parameters.imageTag }}
-                - task: AzureWebAppContainer@1
-                  displayName: Deploy image to Linux App Service
+                    packageType: sdk
+                    version: 10.x
+                - script: dotnet restore FSCM.Traceability.slnx
+                  displayName: Restore
+                - script: dotnet build FSCM.Traceability.slnx --configuration Release --no-restore
+                  displayName: Build
+                - script: dotnet test FSCM.Traceability.slnx --configuration Release --no-build
+                  displayName: Test .NET
+                - script: node --test tests/batch-details.test.cjs
+                  displayName: Test web UI regression
+                - script: dotnet publish FSCM.Traceability.csproj --configuration Release --no-restore --output "$(publishDirectory)"
+                  displayName: Publish application
+                - task: ArchiveFiles@2
+                  displayName: Package publish output
+                  inputs:
+                    rootFolderOrFile: $(publishDirectory)
+                    includeRootFolder: false
+                    archiveType: zip
+                    archiveFile: $(packagePath)
+                    replaceExistingArchive: true
+                - task: AzureWebApp@1
+                  displayName: Deploy package to Windows App Service
                   inputs:
                     azureSubscription: $(azureSubscription)
+                    appType: webApp
                     appName: $(appName)
-                    containers: $(containerRegistry)/$(imageRepository):${{ parameters.imageTag }}
+                    package: $(packagePath)

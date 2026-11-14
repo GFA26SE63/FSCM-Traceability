@@ -1,6 +1,6 @@
 # FSCM Traceability — ứng dụng nhà máy deploy riêng
 
-Project tự build/publish, không có ProjectReference hoặc source-link đến FSCM. Giao diện và API nhà máy được phục vụ cùng một domain/container. Chỉ kết nối DB `fscm_traceability`; không có connection string DB kho. Hai ứng dụng tích hợp bằng HTTP.
+Project tự build/publish, không có ProjectReference hoặc source-link đến FSCM. Giao diện và API nhà máy được phục vụ cùng một domain/process. Chỉ kết nối DB `fscm_traceability`; không có connection string DB kho. Hai ứng dụng tích hợp bằng HTTP.
 
 ## Chạy local
 
@@ -19,14 +19,14 @@ Mở http://localhost:5250/ và đăng nhập bằng Admin FSCM. Backend FSCM lo
 | Traceability | `ConnectionStrings__TraceabilityConnection` | Kết nối DB `fscm_traceability` |
 | Traceability | `Fscm__BaseUrl` | Origin API FSCM, có dấu `/` cuối, dùng HTTPS khi deploy |
 | Traceability | `Integration__ApiKey` | Khóa dịch vụ ngẫu nhiên, tối thiểu 32 ký tự |
-| Traceability | `DataProtection__KeyPath` | Thư mục persistent cho khóa cookie, Docker mặc định `/keys` |
+| Traceability | `DataProtection__KeyPath` | Thư mục persistent cho khóa cookie; App Service Windows dùng `D:\home\site\keys`, Docker dùng `/keys` |
 | FSCM | `Traceability__BaseUrl` | Origin API traceability, có dấu `/` cuối |
 | FSCM | `Traceability__PublicUrl` | URL giao diện traceability để mở từ FSCM |
 | FSCM | `Traceability__ApiKey` | Cùng khóa dịch vụ phía traceability |
 
 Không cấu hình DB kho hoặc JWT signing secret trong traceability. Đăng nhập/kiểm tra tài khoản qua API FSCM; token được giữ trong cookie mã hóa HttpOnly của nhà máy, không trả token cho JavaScript hoặc lưu localStorage. API đăng nhập giới hạn tần suất; thao tác giao diện yêu cầu custom header để chặn form cross-site. Endpoint dịch vụ dùng khóa riêng và so sánh constant time. Chỉ expose HTTPS khi deploy để cookie Secure hoạt động.
 
-### Docker / Azure / hosting container khác
+### Docker / hosting container khác (tùy chọn)
 
 **Build context chính là thư mục này**, không cần build backend FSCM:
 
@@ -42,7 +42,7 @@ Compose mẫu nhận env qua file cục bộ `factory.local.env` (không commit)
 docker compose --env-file factory.local.env up -d --build
 ```
 
-For Azure App Service (Linux custom container), see
+For Azure App Service Windows code deployment, see
 [`docs/deployment/azure-app-service.md`](docs/deployment/azure-app-service.md).
 
 ### Migration và dữ liệu đã có
@@ -80,6 +80,6 @@ Chạy regression giao diện (Node có sẵn, không cần npm install): `node 
 
 ## Source layout and deployment entry point
 
-The active production simulator, receipt inspection protocol, database migrations and web UI are in the root project `FSCM.Traceability.csproj`. Build Docker from this repository root. This app serves its UI and API together, uses the separate traceability database, and integrates with FSCM over HTTP.
+The active production simulator, receipt inspection protocol, database migrations and web UI are in the root project `FSCM.Traceability.csproj`. Publish this project to deploy it as App Service code; Docker remains an optional hosting path. This app serves its UI and API together, uses the separate traceability database, and integrates with FSCM over HTTP.
 
 The repository contains only the active root application; deployment builds from this directory.
