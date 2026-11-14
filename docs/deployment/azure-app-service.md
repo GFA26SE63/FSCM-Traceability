@@ -73,6 +73,30 @@ The workflow builds the root `Dockerfile`, pushes
 does not run migrations automatically; migration is intentionally a separate,
 auditable release step.
 
+## Azure DevOps pipeline
+
+`azure-pipelines.yml` is the equivalent manual Azure DevOps pipeline. Import
+the GitHub repository into Azure DevOps or create a pipeline that points at the
+repository and that YAML file. In the pipeline Variables UI, create these
+non-secret variables:
+
+| Variable | Meaning |
+|---|---|
+| `azureSubscription` | Azure Resource Manager service connection name |
+| `dockerRegistryServiceConnection` | Docker Registry service connection for ACR |
+| `containerRegistry` | ACR login server, for example `name.azurecr.io` |
+| `imageRepository` | `fscm-traceability` |
+| `appName` | Linux App Service name |
+
+Store only application secrets in an Azure DevOps variable group backed by
+Azure Key Vault, then set the resulting values in App Service application
+settings. Do not pass the database connection or integration key in YAML.
+
+The pipeline has no automatic trigger and deploys only when you manually run
+it. Its first stage restores, builds, and tests; its second stage builds a
+uniquely tagged Docker image, pushes it to ACR, then uses
+`AzureWebAppContainer@1` to change the App Service image.
+
 ## Verification and rollback
 
 After deployment, verify `https://<traceability-domain>/health` and
