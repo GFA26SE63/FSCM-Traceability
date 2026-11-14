@@ -1,0 +1,4 @@
+*{font-family:Arial,sans-serif}
+body{font:13px Arial,sans-serif}article{display:inline-block;width:280px;border:1px solid;padding:12px;margin:8px;break-inside:avoid}svg{display:block;width:180px;height:180px}small{display:block;overflow-wrap:anywhere}p{margin:7px 0}button{padding:12px 20px}@media print{button{display:none}}
+
+button,input,select,textarea,code,pre{font-family:Arial,sans-serif}

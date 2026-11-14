@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="vi">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Nhà máy · FSCM Traceability</title><link rel="stylesheet" href="/app.css?v=arial-2"><script src="/app.js?v=batch-mapping-2" defer></script></head>
+<body>
+<header><div class="brand"><span class="mark">FT</span><div><strong>FACTORY TRACEABILITY</strong><small>Sản xuất · Đóng hàng · Truy xuất</small></div></div><div id="session"></div></header>
+<main>
+<div id="notice" role="status" aria-live="polite"></div>
+<section id="login" class="panel login"><span class="eyebrow">CỔNG VẬN HÀNH NHÀ MÁY</span><h1>Đăng nhập</h1><p>Dùng tài khoản Admin FSCM để quản lý sản xuất và phát hành pallet.</p><form id="login-form"><label>Email / số điện thoại<input name="identifier" autocomplete="username" required></label><label>Mật khẩu<input name="password" type="password" autocomplete="current-password" required></label><button class="primary">Đăng nhập</button></form></section>
+<div id="workspace" hidden>
+<div class="intro"><div><span class="eyebrow">TỪ NHÀ MÁY ĐẾN KHO</span><h1>Điều hành traceability</h1><p>Batch → Serial sản phẩm → Carton → Pallet → Phát hành đến kho.</p></div><button id="refresh">Làm mới dữ liệu</button></div>
+<div id="stats" class="stats"></div>
+<section class="panel"><div class="section-title"><div><span class="eyebrow">01 · SẢN XUẤT & ĐÓNG HÀNG</span><h2>Tạo mẻ sản xuất</h2></div><span class="pill">Một SKU / batch / pallet</span></div>
+<form id="production-form"><div class="fields">
+<label>Mã nhà máy<input name="factoryCode" value="F01" pattern="[A-Z0-9]{1,12}" maxlength="12" required></label>
+<label>Line sản xuất<select name="productionLine"><option>A</option><option>B</option><option>C</option><option>D</option></select></label>
+<label class="wide">SKU<select name="productId" id="products" required><option value="">Chọn SKU</option></select></label>
+<label>Ngày sản xuất<input name="productionDate" id="production-date" type="date" required></label><label>Hạn sử dụng<input name="expirationDate" type="date" required></label>
+<label>Số pallet<input name="palletCount" type="number" value="2" min="1" max="100" step="1" required></label>
+<label>Carton / pallet<input name="cartonsPerPallet" type="number" value="10" min="1" max="100" step="1" required></label>
+<label>Sản phẩm / carton<input name="unitsPerCarton" type="number" value="12" min="1" max="1000" step="1" required></label>
+</div><div class="form-footer"><span id="production-total"></span><button class="primary">Sản xuất & cấp mã</button></div></form></section>
+<section class="panel"><div class="section-title"><div><span class="eyebrow">02 · PHÁT HÀNH ĐẾN KHO</span><h2>Mẻ sản xuất gần đây</h2></div><span class="muted">Tối đa 100 mẻ gần nhất</span></div><div id="batches" class="table-wrap"></div></section>
+<dialog id="batch-dialog" aria-labelledby="batch-title">
+<div class="dialog-header"><div><span class="eyebrow">CHI TIẾT MẺ & DANH SÁCH MAPPING</span><h2 id="batch-title">Mẻ sản xuất</h2></div><button type="button" id="close-batch">Đóng</button></div>
+<p id="batch-notice" role="status" aria-live="polite"></p>
+<section id="batch-detail"></section>
+<section class="mapping-section"><h3>Danh sách mã đã cấp</h3><div class="mapping-tabs"><button type="button" id="tab-cartons">Carton</button><button type="button" id="tab-units">Serial sản phẩm</button></div>
+<form id="mapping-filter" class="mapping-filter"><label>Pallet<select id="mapping-pallet"><option value="">Tất cả pallet</option></select></label><label>Tìm mã / SKU<input id="mapping-search" placeholder="PID / CID / UID / SKU" autocomplete="off"></label><button>Lọc danh sách</button><button type="button" id="mapping-reset">Bỏ lọc</button></form>
+<p id="mapping-scope" class="muted"></p><div id="mapping-results"></div><div id="mapping-pager" class="mapping-pager"></div></section>
+</dialog>
+<section class="panel"><span class="eyebrow">03 · TRUY XUẤT NGUỒN GỐC</span><h2>Tra cứu mã</h2><form id="trace-form" class="scan"><label>Batch / pallet / carton / serial sản phẩm<input name="code" placeholder="BID / PID / CID / UID" required autocomplete="off"></label><button>Tra cứu</button></form><div id="trace-result"></div></section>
+</div>
+</main><footer>FSCM Factory Traceability · Các mã vật lý được cấp tại nhà máy và giữ nguyên khi nhập kho.</footer>
+</body></html>

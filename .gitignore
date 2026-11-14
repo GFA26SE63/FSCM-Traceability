@@ -1,0 +1,11 @@
+bin/
+obj/
+TestResults/
+appsettings.Local.json
+appsettings.*.Local.json
+*.local.env
+.env*
+*.secrets.json
+*.secret.json
+*.log
+keys/

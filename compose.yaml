@@ -1,0 +1,16 @@
+services:
+  traceability:
+    build: .
+    image: fscm-traceability:local
+    ports:
+      - "5250:8080"
+    environment:
+      ConnectionStrings__TraceabilityConnection: ${TRACEABILITY_DB_CONNECTION:?Set TRACEABILITY_DB_CONNECTION}
+      Fscm__BaseUrl: ${FSCM_API_URL:?Set FSCM_API_URL}
+      Integration__ApiKey: ${TRACEABILITY_INTEGRATION_KEY:?Set TRACEABILITY_INTEGRATION_KEY}
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
+    volumes:
+      - factory-keys:/keys
+    restart: unless-stopped
+volumes:
+  factory-keys:
