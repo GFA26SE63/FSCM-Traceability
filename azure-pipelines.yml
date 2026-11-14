@@ -2,9 +2,12 @@ trigger: none
 pr: none
 
 variables:
-  vmImage: windows-latest
-  publishDirectory: $(Build.ArtifactStagingDirectory)\publish
-  packagePath: $(Build.ArtifactStagingDirectory)\fscm-traceability.zip
+  vmImage: ubuntu-24.04
+  azureServiceConnection: sc-fscm-dev
+  azureResourceGroup: rg-fmcg-dev
+  azureWebAppName: fscm-traceability
+  publishDirectory: $(Build.ArtifactStagingDirectory)/publish
+  packagePath: $(Build.ArtifactStagingDirectory)/fscm-traceability.zip
 
 stages:
   - stage: Deploy
@@ -43,10 +46,17 @@ stages:
                     archiveType: zip
                     archiveFile: $(packagePath)
                     replaceExistingArchive: true
-                - task: AzureWebApp@1
+                - task: AzureCLI@2
                   displayName: Deploy package to Windows App Service
                   inputs:
-                    azureSubscription: $(azureSubscription)
-                    appType: webApp
-                    appName: $(appName)
-                    package: $(packagePath)
+                    azureSubscription: $(azureServiceConnection)
+                    scriptType: bash
+                    scriptLocation: inlineScript
+                    inlineScript: |
+                      az webapp deploy \
+                        --resource-group "$(azureResourceGroup)" \
+                        --name "$(azureWebAppName)" \
+                        --src-path "$(packagePath)" \
+                        --type zip \
+                        --clean true \
+                        --restart true

@@ -32,18 +32,17 @@ application restarts and package deployments.
 
 The manual pipeline in `azure-pipelines.yml` restores, builds, tests, publishes
 `FSCM.Traceability.csproj`, zips only the publish output, and deploys it through
-the `AzureWebApp@1` task. Create an Azure Resource Manager service connection
-that can deploy to the Web App, then add only these non-secret pipeline
-variables:
+Azure CLI. It follows the FSCM Backend delivery setup and uses its existing
+Azure Resource Manager service connection, `sc-fscm-dev`.
 
-| Variable | Meaning |
+| Pipeline value | Configured value |
 |---|---|
-| `azureSubscription` | Azure Resource Manager service connection name |
-| `appName` | Azure Web App name, for example `fscm-traceability` |
+| Azure service connection | `sc-fscm-dev` |
+| Resource group | `rg-fmcg-dev` |
+| Azure Web App | `fscm-traceability` |
 
-Enable **SCM Basic Auth Publishing Credentials** on the App Service if the
-deployment task reports a publishing-credential or ZIP deploy authorization
-error. Do not enable FTP.
+The service connection must retain the permissions already used by Backend to
+deploy into `rg-fmcg-dev`.
 
 ## First database migration
 
