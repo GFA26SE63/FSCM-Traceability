@@ -42,6 +42,9 @@ Compose mẫu nhận env qua file cục bộ `factory.local.env` (không commit)
 docker compose --env-file factory.local.env up -d --build
 ```
 
+For Azure App Service (Linux custom container), see
+[`docs/deployment/azure-app-service.md`](docs/deployment/azure-app-service.md).
+
 ### Migration và dữ liệu đã có
 
 Project giữ nguyên ID migration `InitialFactoryDatabase` đã áp dụng và giữ nguyên tên bảng/ID/BID/PID/CID/UID. Không tạo database thay thế hoặc reset dữ liệu.
