@@ -44,6 +44,15 @@ Azure Resource Manager service connection, `sc-fscm-dev`.
 The service connection must retain the permissions already used by Backend to
 deploy into `rg-fmcg-dev`.
 
+## Automatic Azure DevOps delivery
+
+GitHub is the source of truth. The GitHub workflow
+`.github/workflows/mirror-to-azure.yml` mirrors every GitHub branch to the
+Azure DevOps repository. Create an Azure DevOps PAT with **Code: Read & write**
+for that repository, then store it only as the GitHub repository Actions secret
+`AZURE_DEVOPS_PAT`. Azure DevOps receives the mirrored `main` branch and the
+pipeline automatically validates and deploys it to App Service.
+
 ## First database migration
 
 After the first code deployment, use the App Service Kudu console in
