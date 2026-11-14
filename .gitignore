@@ -9,6 +9,7 @@ appsettings.*.Local.json
 *.secret.json
 *.log
 keys/
+graphify-out/
 
 # Original scaffold exclusions
 .idea/

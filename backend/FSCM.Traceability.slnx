@@ -1,7 +1,0 @@
-<Solution>
-  <Project Path="src/FSCM.Traceability.Domain/FSCM.Traceability.Domain.csproj" />
-  <Project Path="src/FSCM.Traceability.Application/FSCM.Traceability.Application.csproj" />
-  <Project Path="src/FSCM.Traceability.Infrastructure/FSCM.Traceability.Infrastructure.csproj" />
-  <Project Path="src/FSCM.Traceability.Persistence/FSCM.Traceability.Persistence.csproj" />
-  <Project Path="src/FSCM.Traceability.Api/FSCM.Traceability.Api.csproj" />
-</Solution>

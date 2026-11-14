@@ -8,6 +8,11 @@
     <Content Update="appsettings.Local.json" CopyToPublishDirectory="Never" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Remove="backend/**;frontend/**" />
+    <Content Remove="backend/**;frontend/**" />
+    <None Remove="backend/**;frontend/**" />
+  </ItemGroup>
+  <ItemGroup>
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.10">
       <PrivateAssets>all</PrivateAssets>
