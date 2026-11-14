@@ -9,3 +9,17 @@ appsettings.*.Local.json
 *.secret.json
 *.log
 keys/
+
+# Original scaffold exclusions
+.idea/
+.vs/
+**/bin/
+**/obj/
+**/node_modules/
+**/dist/
+*.tsbuildinfo
+appsettings.json
+.env
+.env.local
+*.user
+

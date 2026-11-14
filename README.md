@@ -74,3 +74,9 @@ Nút Xem chi tiết mở dialog riêng, tải metadata trực tiếp từ databa
 API đọc mới: `GET /api/batches/{id}` và `GET /api/batches/{id}/mapping?level=cartons|units&pallet=...&carton=...&search=...&page=1&pageSize=50`. Không thay schema, không sinh lại mã. Sau cập nhật phải restart API rồi Ctrl+F5 để nạp JS mới. Script `scripts/Restart-Traceability.ps1` ở repo FSCM chỉ dừng đúng instance traceability ở cổng 5250 sau khi xác minh executable thuộc project; không dừng các process .NET khác.
 
 Chạy regression giao diện (Node có sẵn, không cần npm install): `node --test tests/batch-details.test.cjs`.
+
+## Source layout and deployment entry point
+
+The active production simulator, receipt inspection protocol, database migrations and web UI are in the root project `FSCM.Traceability.csproj`. Build Docker from this repository root. This app serves its UI and API together, uses the separate traceability database, and integrates with FSCM over HTTP.
+
+The `backend/` and `frontend/` directories retain the original repository scaffold for reference. They do not contain the implemented factory workflow and are not the deployment entry point for this release.
