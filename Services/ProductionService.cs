@@ -159,6 +159,23 @@ public sealed class ProductionService(FactoryDbContext source, IFscmGateway fscm
     }, ct);
 
     // The receipt module consumes a manifest; it never guesses the contents from the QR string.
+    public IQueryable<DispatchedPallet> DispatchedQuery(Guid[] warehouseIds) =>
+        from pallet in source.Set<FactoryPallet>().AsNoTracking()
+        join batch in source.Set<FactoryProductionBatch>().AsNoTracking() on pallet.ProductionBatchId equals batch.Id
+        where pallet.Status == "Dispatched" && pallet.DestinationWarehouseId.HasValue
+            && warehouseIds.Contains(pallet.DestinationWarehouseId.Value)
+        orderby pallet.DispatchedAt, pallet.Code
+        select new DispatchedPallet(pallet.Id, pallet.Code, pallet.DestinationWarehouseId!.Value,
+            pallet.DispatchedAt, batch.Code, batch.Sku, batch.ProductName,
+            source.Set<FactoryCarton>().Count(c => c.PalletId == pallet.Id), batch.ExpirationDate);
+
+    public Task<DispatchedPallet[]> DispatchedAsync(Guid[] warehouseIds, CancellationToken ct)
+    {
+        if (warehouseIds.Length is < 1 or > 500 || warehouseIds.Contains(Guid.Empty))
+            throw FactoryException.Validation("Cần danh sách kho nhận hợp lệ (tối đa 500 kho).");
+        return DispatchedQuery(warehouseIds.Distinct().ToArray()).ToArrayAsync(ct);
+    }
+
     public async Task<PalletManifest> ManifestAsync(string code, CancellationToken ct)
     {
         var pallet = await source.Set<FactoryPallet>().AsNoTracking().SingleOrDefaultAsync(x => x.Code == code, ct)

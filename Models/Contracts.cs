@@ -1,5 +1,8 @@
 namespace Fscm.Traceability.Models;
 
+public sealed record DispatchedPallet(Guid PalletId, string PalletCode, Guid DestinationWarehouseId,
+    DateTimeOffset? DispatchedAt, string BatchCode, string Sku, string ProductName, int CartonCount, DateOnly ExpirationDate);
+
 public sealed record SimulateProductionRequest(string FactoryCode, string ProductionLine, Guid ProductId,
     DateOnly ProductionDate, DateOnly ExpirationDate, int PalletCount, int CartonsPerPallet, int UnitsPerCarton);
 public sealed record FactoryBatchView(FactoryProductionBatch Batch, string Sku, string ProductName, FactoryPallet[] Pallets, int CartonCount, int UnitCount);
