@@ -98,6 +98,8 @@ public sealed class Program
             return await next(context);
         });
         integration.MapGet("/pallets/{code}/manifest", (string code, ProductionService service, CancellationToken ct) => service.ManifestAsync(code, ct));
+        integration.MapGet("/dispatches", ([Microsoft.AspNetCore.Mvc.FromQuery] Guid[] warehouseIds,
+            ProductionService service, CancellationToken ct) => service.DispatchedAsync(warehouseIds, ct));
         integration.MapGet("/trace", (string code, ProductionService service, CancellationToken ct) => service.TraceAsync(code, ct));
         integration.MapPost("/receipts", async (ReceiptAcknowledgement receipt, ProductionService service, CancellationToken ct) =>
             new { id = await service.AcknowledgeReceiptAsync(receipt, ct), receipt.ReceiptInspectionJson });
