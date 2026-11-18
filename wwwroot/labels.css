@@ -1,4 +1,87 @@
-*{font-family:Arial,sans-serif}
-body{font:13px Arial,sans-serif}article{display:inline-block;width:280px;border:1px solid;padding:12px;margin:8px;break-inside:avoid}svg{display:block;width:180px;height:180px}small{display:block;overflow-wrap:anywhere}p{margin:7px 0}button{padding:12px 20px}@media print{button{display:none}}
-
-button,input,select,textarea,code,pre{font-family:Arial,sans-serif}
+* {
+  font-family: Arial, sans-serif;
+  box-sizing: border-box;
+}
+body {
+  font:
+    13px Arial,
+    sans-serif;
+  margin: 0;
+  padding: 0 8px 8px;
+  color: #172b35;
+}
+/* Toolbar row on top of the sheet, styled like the app's primary buttons (wwwroot/app.css). */
+.print-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  justify-content: flex-start;
+  gap: 8px;
+  padding: 12px 8px;
+  margin: 0 -8px 4px;
+  background: #fff;
+  border-bottom: 1px solid #dce5e7;
+}
+.print-toolbar button {
+  display: inline-block;
+  cursor: pointer;
+  padding: 10px 16px;
+  border: 1px solid #c9d9dc;
+  background: #fff;
+  border-radius: 7px;
+  color: #234b55;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.print-toolbar button.primary {
+  color: #fff;
+  background: #087d69;
+  border-color: #087d69;
+}
+.print-toolbar button.primary:hover {
+  background: #086b5b;
+}
+.print-toolbar button:focus-visible {
+  outline: 2px solid #7dbfb0;
+  outline-offset: 1px;
+}
+article {
+  display: inline-block;
+  width: 280px;
+  border: 1px solid;
+  padding: 12px;
+  margin: 8px;
+  break-inside: avoid;
+  vertical-align: top;
+}
+svg {
+  display: block;
+  width: 180px;
+  height: 180px;
+}
+small {
+  display: block;
+  overflow-wrap: anywhere;
+}
+p {
+  margin: 7px 0;
+}
+@media print {
+  .print-toolbar {
+    display: none;
+  }
+  body {
+    padding: 0;
+  }
+}
+button,
+input,
+select,
+textarea,
+code,
+pre {
+  font-family: Arial, sans-serif;
+}

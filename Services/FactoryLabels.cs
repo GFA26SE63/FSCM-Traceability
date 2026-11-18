@@ -7,7 +7,8 @@ namespace Fscm.Traceability.Services;
 
 public static class FactoryLabels
 {
-    private static string Start => "<!doctype html><html lang='vi'><meta charset='utf-8'><title>Nhãn traceability</title><link rel='stylesheet' href='/labels.css'><button id='print'>In nhãn</button><script src='/print.js' defer></script>";
+    // Print button sits in its own toolbar row above the labels and is hidden when printing.
+    private static string Start => "<!doctype html><html lang='vi'><meta charset='utf-8'><title>Nhãn traceability</title><link rel='stylesheet' href='/labels.css?v=toolbar-1'><div class='print-toolbar'><button id='print' class='primary' type='button'>In nhãn</button></div><script src='/print.js' defer></script>";
     private static void Label(StringBuilder html, string code, string level, string sku, FactoryProductionBatch batch)
     {
         using var generator = new QRCodeGenerator();
