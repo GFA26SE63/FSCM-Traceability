@@ -70,7 +70,7 @@ function renderBatch() {
       await api('/api/batches/' + view.batch.id + '/dispatch', 'POST', { destinationWarehouseId: select.value, palletIds: [...selectedPallets] }); await refresh(); notice('Đã phát hành pallet. Thủ kho có thể quét nhận trên phiếu nhập FSCM.'); }); };
     section.append(form);
   }
-  section.append(table([...(packed ? ['Chọn'] : []), 'Pallet code', 'Carton', 'Sản phẩm', 'Trạng thái', 'Kho đích', 'Mapping / QR'], view.pallets.map(row => {
+  section.append(table([...(packed ? ['Chọn'] : []), 'Pallet code', 'Carton', 'Sản phẩm', 'Trạng thái', 'Kho đích', 'QR'], view.pallets.map(row => {
     const p = row.pallet, actions = el('div', null, 'row-actions');
     actions.append(button('Xem carton', () => chooseMapping(p.code)), link('In QR', '/api/pallets/' + encodeURIComponent(p.code) + '/labels'));
     const cells = [code(p.code), row.cartonCount, row.unitCount, status[p.status], warehouseName(p.destinationWarehouseId), actions];
@@ -98,13 +98,26 @@ async function chooseMapping(pallet = mapping.pallet) {
   $('mapping-search').value = ''; $('mapping-pallet').value = pallet;
   await loadMapping(); $('mapping-results').scrollIntoView({ block: 'nearest' });
 }
-// All serials of a carton in one cell; a long carton shows its range and expands in place.
-function serialCell(codes) {
-  if (!codes?.length) return el('span', '—');
-  const list = el('div', null, 'serials'); codes.forEach(c => list.append(code(c)));
-  if (codes.length <= 12) return list;
-  const box = el('details'), summary = el('summary', `${codes.length} serial · ${codes[0]} → ${codes[codes.length - 1]}`);
-  box.append(summary, list); return box;
+// Serials of one carton in their own popup, 10 per page, read from the same mapping API.
+const SERIAL_PAGE_SIZE = 10;
+let serialView = null;
+async function openSerials(pallet, carton, page = 1) {
+  const batch = selected; serialView = { batch, pallet, carton, page };
+  $('serial-title').textContent = carton; $('serial-scope').textContent = [batchView?.batch.code, pallet, carton].filter(Boolean).join(' → ');
+  if (!$('serial-dialog').open) { $('serial-results').replaceChildren(); $('serial-pager').replaceChildren(); $('serial-dialog').showModal(); }
+  const params = new URLSearchParams({ level: 'units', pallet, carton, page: String(page), pageSize: String(SERIAL_PAGE_SIZE) });
+  const result = await api('/api/batches/' + encodeURIComponent(batch) + '/mapping?' + params.toString());
+  if (!$('serial-dialog').open || serialView?.carton !== carton || serialView.batch !== batch) return;
+  const pages = Math.max(1, Math.ceil(result.totalCount / result.pageSize));
+  if (result.page > pages) return openSerials(pallet, carton, pages);
+  serialView.page = result.page;
+  $('serial-results').replaceChildren(table(['STT', 'Serial sản phẩm', 'SKU', 'NSX / HSD'], result.items.map((row, i) => [
+    String((result.page - 1) * result.pageSize + i + 1), code(row.unitCode), row.sku, date(row.productionDate) + ' / ' + date(row.expirationDate)])));
+  const controls = el('div', null, 'pager-buttons');
+  const previous = button('Trang trước', () => openSerials(pallet, carton, result.page - 1)); previous.disabled = result.page <= 1;
+  const next = button('Trang sau', () => openSerials(pallet, carton, result.page + 1)); next.disabled = result.page >= pages;
+  controls.append(previous, next);
+  $('serial-pager').replaceChildren(el('span', `${result.totalCount} serial · Trang ${result.page}/${pages}`), controls);
 }
 async function loadMapping() {
   const params = new URLSearchParams({ level: mapping.level, page: String(mapping.page), pageSize: String(mapping.pageSize) });
@@ -115,9 +128,9 @@ async function loadMapping() {
   const lastPage = Math.max(1, Math.ceil(result.totalCount / result.pageSize));
   if (result.page > lastPage) { mapping.page = lastPage; return loadMapping(); }
   $('mapping-scope').textContent = [batchView.batch.code, mapping.pallet].filter(Boolean).join(' → ');
-  $('mapping-results').replaceChildren(table(['Pallet', 'Carton', 'Serial sản phẩm', 'Mapping / QR'], result.items.map(row => {
+  $('mapping-results').replaceChildren(table(['Pallet', 'Carton', 'Serial sản phẩm', 'QR'], result.items.map(row => {
     const actions = el('div', null, 'row-actions'); actions.append(link('In QR sản phẩm', '/api/cartons/' + encodeURIComponent(row.cartonCode) + '/unit-labels'));
-    return [code(row.palletCode), code(row.cartonCode), serialCell(row.unitCodes), actions];
+    return [code(row.palletCode), code(row.cartonCode), button(`Hiện các serial (${row.unitsInCarton})`, () => openSerials(row.palletCode, row.cartonCode)), actions];
   })));
   const pages = Math.max(1, Math.ceil(result.totalCount / result.pageSize)), summary = el('span', `${result.totalCount} carton · Trang ${result.page}/${pages}`), controls = el('div', null, 'pager-buttons');
   const previous = button('Trang trước', async () => { mapping.page--; await loadMapping(); }); previous.disabled = result.page <= 1;
@@ -133,6 +146,8 @@ async function restoreBatchView() {
   await openBatch(id, false);
 }
 $('close-batch').onclick = () => $('batch-dialog').close();
+$('close-serial').onclick = () => $('serial-dialog').close();
+$('serial-dialog').addEventListener('close', () => { serialView = null; });
 $('batch-dialog').addEventListener('close', () => { selected = ''; batchView = null; history.replaceState(null, '', location.pathname + location.search); });
 $('mapping-filter').onsubmit = e => { e.preventDefault(); run(async () => { mapping = { ...mapping, pallet: $('mapping-pallet').value, carton: '', search: $('mapping-search').value.trim(), page: 1 }; await loadMapping(); }); };
 $('mapping-reset').onclick = () => run(() => chooseMapping(''));

@@ -116,18 +116,6 @@ public sealed class ProductionService(FactoryDbContext source, IFscmGateway fscm
         var ordered = rows.OrderBy(x => x.PalletCode).ThenBy(x => x.CartonCode);
         if (level == "units") ordered = ordered.ThenBy(x => x.UnitCode);
         var items = await ordered.Skip((page - 1) * pageSize).Take(pageSize).ToArrayAsync(ct);
-        if (level == "cartons" && items.Length > 0)
-        {
-            // Serials of the cartons on this page, in issue order, so one table shows carton and its products.
-            var cartonCodes = items.Select(x => x.CartonCode).ToArray();
-            var serials = await (from u in source.Set<FactoryProductUnit>().AsNoTracking()
-                join c in source.Set<FactoryCarton>().AsNoTracking() on u.CartonId equals c.Id
-                join p in source.Set<FactoryPallet>().AsNoTracking() on c.PalletId equals p.Id
-                where p.ProductionBatchId == id && cartonCodes.Contains(c.Code)
-                orderby u.Sequence select new { CartonCode = c.Code, u.Code }).ToArrayAsync(ct);
-            var byCarton = serials.GroupBy(x => x.CartonCode).ToDictionary(g => g.Key, g => g.Select(x => x.Code).ToArray());
-            items = items.Select(x => x with { UnitCodes = byCarton.GetValueOrDefault(x.CartonCode) ?? [] }).ToArray();
-        }
         return new(items, page, pageSize, count);
     }
 

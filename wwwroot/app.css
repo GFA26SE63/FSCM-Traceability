@@ -4,3 +4,4 @@ dialog{width:min(1380px,96vw);max-height:92vh;overflow:auto;padding:26px;border:
 
 input,select,textarea,button,code,pre,kbd,samp,svg text,svg tspan{font-family:Arial,sans-serif}
 .label-actions{margin-bottom:20px}.dispatch-form{margin-bottom:12px}.pallet-check{width:18px;height:18px;margin:0;cursor:pointer}.serials{display:flex;flex-wrap:wrap;gap:4px 12px}.serials code{white-space:nowrap}details summary{cursor:pointer;color:#234b55;font-weight:600;margin-bottom:6px}
+.serial-dialog{width:min(760px,94vw)}

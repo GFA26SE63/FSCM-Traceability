@@ -48,7 +48,7 @@ async function setup(hash = '') {
       if (url.pathname === '/api/batches') data = [{ batch, sku: 'SKU001', productName: 'Product', pallets: [pallet], cartonCount: 20, unitCount: 240 }];
       else if (url.pathname === '/api/batches/' + batchId) data = { batch, sku: 'SKU001', productName: 'Product', pallets: [{ pallet, cartonCount: 20, unitCount: 240 }], cartonCount: 20, unitCount: 240 };
       else if (url.pathname.endsWith('/mapping')) data = { page: Number(url.searchParams.get('page')), pageSize: 50, totalCount: 120,
-        items: [{ batchCode: batch.code, palletCode: pallet.code, cartonCode: carton, sku: 'SKU001', unitCode: 'UID-F01-20261113-A-0001-000001', unitsInCarton: 12, unitCodes: Array.from({ length: 12 }, (_, i) => 'UID-F01-20261113-A-0001-' + String(i + 1).padStart(6, '0')), productionDate: batch.productionDate, expirationDate: batch.expirationDate }] };
+        items: [{ batchCode: batch.code, palletCode: pallet.code, cartonCode: carton, sku: 'SKU001', unitCode: 'UID-F01-20261113-A-0001-000001', unitsInCarton: 12, productionDate: batch.productionDate, expirationDate: batch.expirationDate }] };
       else throw new Error('Unexpected request ' + request);
       return { status: 200, ok: true, json: async () => data };
     },
@@ -70,17 +70,24 @@ test('clicking the actual batch detail action opens a visible dialog and loads p
   assert.ok(app.requests.some(url => url.includes('/mapping?')));
 });
 
-test('carton table shows each carton with its serials in one table, no tabs or serial button', async () => {
+test('carton table has a "Hiện các serial" button that opens a 10-per-page serial popup for that carton', async () => {
   const app = await setup(); await app.run(`openBatch('${batchId}')`);
-  const url = new URL(app.requests.at(-1), 'http://factory.test/');
-  assert.equal(url.searchParams.get('level'), 'cartons');
   const text = app.nodes['mapping-results'].textContent;
-  assert.ok(text.includes(carton)); assert.ok(text.includes('UID-F01-20261113-A-0001-000001')); assert.ok(text.includes('UID-F01-20261113-A-0001-000012'));
-  assert.ok(text.includes('Serial sản phẩm')); assert.ok(!text.includes('NSX / HSD')); assert.ok(!text.includes('Sản phẩm trong carton'));
-  assert.equal(find(app.nodes['mapping-results'], 'Xem serial'), undefined);
+  assert.ok(text.includes(carton)); assert.ok(text.includes('Serial sản phẩm')); assert.ok(!text.includes('Mapping'));
+  assert.ok(!text.includes('UID-F01-20261113-A-0001-000001'));
   assert.ok(findLink(app.nodes['mapping-results'], 'In QR sản phẩm'));
+  const show = find(app.nodes['mapping-results'], 'Hiện các serial (12)'); assert.ok(show);
+  await show.onclick();
+  assert.equal(app.nodes['serial-dialog'].open, true);
+  assert.equal(app.nodes['batch-dialog'].open, true);
+  const url = new URL(app.requests.at(-1), 'http://factory.test/');
+  assert.equal(url.searchParams.get('level'), 'units'); assert.equal(url.searchParams.get('carton'), carton);
+  assert.equal(url.searchParams.get('pallet'), pallet.code); assert.equal(url.searchParams.get('pageSize'), '10');
+  assert.ok(app.nodes['serial-results'].textContent.includes('UID-F01-20261113-A-0001-000001'));
+  await find(app.nodes['serial-pager'], 'Trang sau').onclick();
+  assert.equal(new URL(app.requests.at(-1), 'http://factory.test/').searchParams.get('page'), '2');
+  app.nodes['close-serial'].onclick(); assert.equal(app.nodes['serial-dialog'].open, false); assert.equal(app.nodes['batch-dialog'].open, true);
 });
-
 test('pallet "Xem carton" filters the carton table and paging keeps the pallet filter', async () => {
   const app = await setup(); await app.run(`openBatch('${batchId}')`);
   await find(app.nodes['batch-detail'], 'Xem carton').onclick();

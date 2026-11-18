@@ -4,8 +4,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>Nhà máy · FSCM Traceability</title>
-    <link rel="stylesheet" href="/app.css?v=batch-serials-1" />
-    <script src="/app.js?v=batch-serials-1" defer></script>
+    <link rel="stylesheet" href="/app.css?v=batch-serials-2" />
+    <script src="/app.js?v=batch-serials-2" defer></script>
   </head>
   <body>
     <header>
@@ -169,6 +169,22 @@
             <div id="mapping-results"></div>
             <div id="mapping-pager" class="mapping-pager"></div>
           </section>
+        </dialog>
+        <dialog
+          id="serial-dialog"
+          class="serial-dialog"
+          aria-labelledby="serial-title"
+        >
+          <div class="dialog-header">
+            <div>
+              <span class="eyebrow">SERIAL SẢN PHẨM TRONG CARTON</span>
+              <h2 id="serial-title">Serial sản phẩm</h2>
+            </div>
+            <button type="button" id="close-serial">Đóng</button>
+          </div>
+          <p id="serial-scope" class="muted"></p>
+          <div id="serial-results"></div>
+          <div id="serial-pager" class="mapping-pager"></div>
         </dialog>
         <section class="panel">
           <span class="eyebrow">03 · TRUY XUẤT NGUỒN GỐC</span>
