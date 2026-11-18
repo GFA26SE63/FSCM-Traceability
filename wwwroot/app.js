@@ -1,16 +1,21 @@
 const $ = id => document.getElementById(id);
+const page = ({ '/': 'production', '/production': 'production', '/issuance': 'issuance', '/traceability': 'traceability' })[location.pathname] || 'production';
 let batches = [], warehouses = [], selected = '', busy = false, operation = null, batchView = null;
 let mapping = { level: 'cartons', pallet: '', carton: '', search: '', page: 1, pageSize: 50 };
 const status = { Packed: 'Đã đóng pallet', Dispatched: 'Đã xuất nhà máy', Received: 'Đã có kết quả nhận' };
 function el(tag, text, className) { const e = document.createElement(tag); if (text != null) e.textContent = text; if (className) e.className = className; return e; }
 function notice(text, error = false) { for (const id of ['notice', 'batch-notice']) { $(id).textContent = text; $(id).className = error ? 'error' : ''; } }
+function showPage() {
+  for (const [id, owner] of Object.entries({ 'production-overview': 'production', production: 'production', issuance: 'issuance', traceability: 'traceability' }))
+    $(id).hidden = owner !== page;
+}
 function signedIn(user) {
-  $('login').hidden = true; $('workspace').hidden = false; $('session').replaceChildren(el('span', user.fullName || user.name || 'Admin'));
+  $('login').hidden = true; $('workspace').hidden = false; $('main-nav').hidden = false; showPage(); $('session').replaceChildren(el('span', user.fullName || user.name || 'Admin'));
   const logout = el('button', 'Đăng xuất'); logout.onclick = () => run(async () => { await api('/api/session/logout', 'POST'); location.reload(); }); $('session').append(logout);
 }
 async function api(path, method = 'GET', body, key) {
   const response = await fetch(path, { method, credentials: 'same-origin', headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'Traceability', ...(key ? { 'Idempotency-Key': key } : {}) }, body: body == null ? undefined : JSON.stringify(body) });
-  if (response.status === 401) { $('workspace').hidden = true; $('login').hidden = false; $('session').replaceChildren(); throw new Error('Vui lòng đăng nhập bằng tài khoản Admin FSCM.'); }
+  if (response.status === 401) { $('workspace').hidden = true; $('login').hidden = false; $('main-nav').hidden = true; $('session').replaceChildren(); throw new Error('Vui lòng đăng nhập bằng tài khoản Admin FSCM.'); }
   if (!response.ok) { let message = 'Yêu cầu thất bại (' + response.status + ').'; try { const data = await response.json(); message = data.message || data.detail || message; } catch {} throw new Error(message); }
   return response.status === 204 ? null : response.json();
 }

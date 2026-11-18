@@ -4,18 +4,23 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>Nhà máy · FSCM Traceability</title>
-    <link rel="stylesheet" href="/app.css?v=batch-serials-2" />
-    <script src="/app.js?v=batch-serials-2" defer></script>
+    <link rel="stylesheet" href="/app.css?v=page-navigation-2" />
+    <script src="/app.js?v=page-navigation-2" defer></script>
   </head>
   <body>
     <header>
-      <div class="brand">
-        <span class="mark">FT</span>
+      <a class="brand" href="/" aria-label="Về trang mặc định FSCM Traceability">
+        <img class="brand-logo" src="/fscm-logo.png" alt="FSCM" />
         <div>
           <strong>FACTORY TRACEABILITY</strong
           ><small>Sản xuất · Đóng hàng · Truy xuất</small>
         </div>
-      </div>
+      </a>
+      <nav id="main-nav" class="main-nav" aria-label="Quy trình traceability" hidden>
+        <a href="/production">01 · SẢN XUẤT &amp; ĐÓNG HÀNG</a>
+        <a href="/issuance">02 · PHÁT HÀNH ĐẾN KHO</a>
+        <a href="/traceability">03 · TRUY XUẤT NGUỒN GỐC</a>
+      </nav>
       <div id="session"></div>
     </header>
     <main>
@@ -42,7 +47,7 @@
         </form>
       </section>
       <div id="workspace" hidden>
-        <div class="intro">
+        <div id="production-overview" class="intro">
           <div>
             <span class="eyebrow">TỪ NHÀ MÁY ĐẾN KHO</span>
             <h1>Điều hành traceability</h1>
@@ -53,7 +58,7 @@
           <button id="refresh">Làm mới dữ liệu</button>
         </div>
         <div id="stats" class="stats"></div>
-        <section class="panel">
+        <section id="production" class="panel workflow-section">
           <div class="section-title">
             <div>
               <span class="eyebrow">01 · SẢN XUẤT & ĐÓNG HÀNG</span>
@@ -130,7 +135,7 @@
             </div>
           </form>
         </section>
-        <section class="panel">
+        <section id="issuance" class="panel workflow-section">
           <div class="section-title">
             <div>
               <span class="eyebrow">02 · PHÁT HÀNH ĐẾN KHO</span>
@@ -186,7 +191,7 @@
           <div id="serial-results"></div>
           <div id="serial-pager" class="mapping-pager"></div>
         </dialog>
-        <section class="panel">
+        <section id="traceability" class="panel workflow-section">
           <span class="eyebrow">03 · TRUY XUẤT NGUỒN GỐC</span>
           <h2>Tra cứu mã</h2>
           <form id="trace-form" class="scan">
