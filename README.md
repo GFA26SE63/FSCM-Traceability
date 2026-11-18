@@ -70,6 +70,23 @@ Chạy migration một lần trước khi bật replica mới. Với schema hi�
 
 Project hiện vẫn lưu trong cùng repository để review và giữ lịch sử thay đổi; thư mục này có thể đưa sang repository khác nguyên vẹn vì không phụ thuộc source ngoài thư mục. Chưa tạo tài nguyên hosting hoặc deploy image lên server.
 
+## Quy định UI: chi tiết mở bằng popup
+
+Màn có danh sách (mẻ, pallet, carton, kết quả tra cứu…) mà mỗi mục có thể xem chi tiết thì mỗi mục phải có nút **"Xem chi tiết"**; bấm vào mở popup (`<dialog>` với `showModal()`, như `batch-dialog`). **Không** hiển thị chi tiết thành khối mới ở cuối trang hay chèn bên dưới danh sách. Popup có nút "Đóng" và đóng được bằng phím Esc. Khi thêm màn mới, theo đúng mẫu `openBatch` trong `wwwroot/app.js`.
+
+## In mã QR cho mẻ sản xuất
+
+Khi tạo mẻ (`POST /api/batches/simulate`), hệ thống cấp sẵn toàn bộ mã BID / PID / CID / UID trong cùng giao dịch; không có bước sinh mã riêng. Nhãn QR in từ chính các mã đã cấp, không cấp lại mã:
+
+| Nhãn | Endpoint (chỉ giao diện Admin) | Nút trên giao diện |
+|---|---|---|
+| Cả mẻ: QR batch + QR từng pallet | `GET /api/batches/{id}/labels` | "In QR mẻ" ở danh sách mẻ; "In QR mẻ (batch + pallet)" trong popup chi tiết |
+| Cả mẻ, kèm QR từng carton | `GET /api/batches/{id}/labels?cartons=true` | "In QR đầy đủ (kèm carton)" trong popup chi tiết |
+| Một pallet: QR batch + pallet + carton của pallet | `GET /api/pallets/{code}/labels` | "In QR" ở bảng pallet |
+| Serial sản phẩm của một carton | `GET /api/cartons/{code}/unit-labels` | "In QR sản phẩm" ở bảng carton |
+
+Các endpoint in nhãn chỉ đọc DB nhà máy, không đổi schema và không thuộc API tích hợp `/api/integration/*` với FSCM.
+
 ## Xem lại mẻ và mapping
 
 Nút Xem chi tiết mở dialog riêng, tải metadata trực tiếp từ database theo ID (không dựa vào danh sách 100 mẻ gần nhất). Dialog có bảng pallet và tổng carton/sản phẩm, tab Carton và Serial sản phẩm. Chọn Xem carton ở pallet, Xem serial ở carton, hoặc tìm PID/CID/UID/SKU; bảng phân trang 50 dòng và giữ đúng chuỗi batch–pallet–carton. URL hash lưu mẻ và bộ lọc để tải lại trang vẫn xem đúng dữ liệu. Tra cứu BID cũ rồi chọn Mở chi tiết mẻ và mapping cũng mở được mẻ ngoài danh sách gần đây.
