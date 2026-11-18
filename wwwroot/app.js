@@ -8,14 +8,16 @@ function notice(text, error = false) { for (const id of ['notice', 'batch-notice
 function showPage() {
   for (const [id, owner] of Object.entries({ 'production-overview': 'production', production: 'production', issuance: 'issuance', traceability: 'traceability' }))
     $(id).hidden = owner !== page;
+  for (const [id, owner] of Object.entries({ 'nav-production': 'production', 'nav-issuance': 'issuance', 'nav-traceability': 'traceability' }))
+    $(id).setAttribute('aria-current', owner === page ? 'page' : 'false');
 }
 function signedIn(user) {
-  $('login').hidden = true; $('workspace').hidden = false; $('main-nav').hidden = false; showPage(); $('session').replaceChildren(el('span', user.fullName || user.name || 'Admin'));
+  $('session-loading').hidden = true; $('login').hidden = true; $('workspace').hidden = false; $('main-nav').hidden = false; showPage(); $('session').replaceChildren(el('span', user.fullName || user.name || 'Admin'));
   const logout = el('button', 'Đăng xuất'); logout.onclick = () => run(async () => { await api('/api/session/logout', 'POST'); location.reload(); }); $('session').append(logout);
 }
 async function api(path, method = 'GET', body, key) {
   const response = await fetch(path, { method, credentials: 'same-origin', headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'Traceability', ...(key ? { 'Idempotency-Key': key } : {}) }, body: body == null ? undefined : JSON.stringify(body) });
-  if (response.status === 401) { $('workspace').hidden = true; $('login').hidden = false; $('main-nav').hidden = true; $('session').replaceChildren(); throw new Error('Vui lòng đăng nhập bằng tài khoản Admin FSCM.'); }
+  if (response.status === 401) { $('session-loading').hidden = true; $('workspace').hidden = true; $('login').hidden = false; $('main-nav').hidden = true; $('session').replaceChildren(); throw new Error('Vui lòng đăng nhập bằng tài khoản Admin FSCM.'); }
   if (!response.ok) { let message = 'Yêu cầu thất bại (' + response.status + ').'; try { const data = await response.json(); message = data.message || data.detail || message; } catch {} throw new Error(message); }
   return response.status === 204 ? null : response.json();
 }

@@ -30,13 +30,16 @@ const batch = { id: batchId, code: 'BID-F01-20261113-A-0001', factoryCode: 'F01'
 const pallet = { id: 'pallet', code: 'PID-F01-20261113-A-0001-0001', status: 'Dispatched', destinationWarehouseId: 'warehouse' };
 const carton = 'CID-F01-20261113-A-0001-0001';
 
-test('header uses the FSCM logo as a home link and exposes the three workflow menu items', () => {
+test('header uses the FSCM logo consistently and exposes the three page menu items', () => {
   const html = fs.readFileSync(path.join(__dirname, '../wwwroot/index.html'), 'utf8');
   assert.match(html, /<a class="brand" href="\/"[^>]*>/);
   assert.match(html, /<img class="brand-logo" src="\/fscm-logo\.png" alt="FSCM"/);
-  assert.match(html, /href="\/production">01 · SẢN XUẤT &amp; ĐÓNG HÀNG/);
-  assert.match(html, /href="\/issuance">02 · PHÁT HÀNH ĐẾN KHO/);
-  assert.match(html, /href="\/traceability">03 · TRUY XUẤT NGUỒN GỐC/);
+  assert.match(html, /href="\/production">Sản xuất &amp; đóng hàng/);
+  assert.match(html, /href="\/issuance">Phát hành đến kho/);
+  assert.match(html, /href="\/traceability">Truy xuất nguồn gốc/);
+  assert.equal((html.match(/src="\/fscm-logo\.png"/g) ?? []).length, 3);
+  assert.match(html, /id="login" class="panel login" hidden/);
+  assert.match(html, /id="session-loading" class="panel login session-loading"/);
   for (const id of ['production', 'issuance', 'traceability']) assert.match(html, new RegExp(`id="${id}"`));
   assert.ok(fs.existsSync(path.join(__dirname, '../wwwroot/fscm-logo.png')));
   const program = fs.readFileSync(path.join(__dirname, '../Program.cs'), 'utf8');
@@ -78,10 +81,13 @@ test('each workflow route displays only its own page content after sign-in', asy
   assert.equal(issuance.nodes['production-overview'].hidden, true);
   assert.equal(issuance.nodes.issuance.hidden, false);
   assert.equal(issuance.nodes.traceability.hidden, true);
+  assert.equal(issuance.nodes['nav-issuance'].attributes['aria-current'], 'page');
+  assert.equal(issuance.nodes['nav-production'].attributes['aria-current'], 'false');
 
   const traceability = await setup('', '/traceability');
   assert.equal(traceability.nodes.traceability.hidden, false);
   assert.equal(traceability.nodes.issuance.hidden, true);
+  assert.equal(traceability.nodes['nav-traceability'].attributes['aria-current'], 'page');
 });
 
 test('clicking the actual batch detail action opens a visible dialog and loads persisted mapping', async () => {
