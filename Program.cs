@@ -106,6 +106,9 @@ public sealed class Program
         integration.MapGet("/trace", (string code, ProductionService service, CancellationToken ct) => service.TraceAsync(code, ct));
         integration.MapPost("/receipts", async (ReceiptAcknowledgement receipt, ProductionService service, CancellationToken ct) =>
             new { id = await service.AcknowledgeReceiptAsync(receipt, ct), receipt.ReceiptInspectionJson });
+        app.MapGet("/production", () => Results.File(Path.Combine(app.Environment.WebRootPath, "index.html"), "text/html"));
+        app.MapGet("/issuance", () => Results.File(Path.Combine(app.Environment.WebRootPath, "index.html"), "text/html"));
+        app.MapGet("/traceability", () => Results.File(Path.Combine(app.Environment.WebRootPath, "index.html"), "text/html"));
         await app.RunAsync();
     }
     private static async Task<string> Token(HttpContext context) => (await context.AuthenticateAsync()).Properties?.GetTokenValue("access_token") ?? "";

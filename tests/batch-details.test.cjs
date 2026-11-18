@@ -34,16 +34,18 @@ test('header uses the FSCM logo as a home link and exposes the three workflow me
   const html = fs.readFileSync(path.join(__dirname, '../wwwroot/index.html'), 'utf8');
   assert.match(html, /<a class="brand" href="\/"[^>]*>/);
   assert.match(html, /<img class="brand-logo" src="\/fscm-logo\.png" alt="FSCM"/);
-  assert.match(html, /href="#production">01 · SẢN XUẤT &amp; ĐÓNG HÀNG/);
-  assert.match(html, /href="#issuance">02 · PHÁT HÀNH ĐẾN KHO/);
-  assert.match(html, /href="#traceability">03 · TRUY XUẤT NGUỒN GỐC/);
+  assert.match(html, /href="\/production">01 · SẢN XUẤT &amp; ĐÓNG HÀNG/);
+  assert.match(html, /href="\/issuance">02 · PHÁT HÀNH ĐẾN KHO/);
+  assert.match(html, /href="\/traceability">03 · TRUY XUẤT NGUỒN GỐC/);
   for (const id of ['production', 'issuance', 'traceability']) assert.match(html, new RegExp(`id="${id}"`));
   assert.ok(fs.existsSync(path.join(__dirname, '../wwwroot/fscm-logo.png')));
+  const program = fs.readFileSync(path.join(__dirname, '../Program.cs'), 'utf8');
+  for (const route of ['/production', '/issuance', '/traceability']) assert.ok(program.includes(`app.MapGet("${route}"`));
 });
-async function setup(hash = '') {
+async function setup(hash = '', pathname = '/') {
   const html = fs.readFileSync(path.join(__dirname, '../wwwroot/index.html'), 'utf8');
   const nodes = Object.fromEntries([...html.matchAll(/id="([^"]+)"/g)].map(match => [match[1], new Element('div')]));
-  const requests = [], location = { pathname: '/', search: '', hash, reload() {} };
+  const requests = [], location = { pathname, search: '', hash, reload() {} };
   const context = vm.createContext({
     Node: Element, Date, URLSearchParams, console,
     crypto: { randomUUID: () => 'request-key' },
@@ -69,6 +71,18 @@ async function setup(hash = '') {
   vm.runInContext("signedIn({name:'Admin'})", context);
   return { nodes, requests, location, context, run: source => vm.runInContext(source, context) };
 }
+
+test('each workflow route displays only its own page content after sign-in', async () => {
+  const issuance = await setup('', '/issuance');
+  assert.equal(issuance.nodes.production.hidden, true);
+  assert.equal(issuance.nodes['production-overview'].hidden, true);
+  assert.equal(issuance.nodes.issuance.hidden, false);
+  assert.equal(issuance.nodes.traceability.hidden, true);
+
+  const traceability = await setup('', '/traceability');
+  assert.equal(traceability.nodes.traceability.hidden, false);
+  assert.equal(traceability.nodes.issuance.hidden, true);
+});
 
 test('clicking the actual batch detail action opens a visible dialog and loads persisted mapping', async () => {
   const app = await setup(); await app.run('refresh()');
