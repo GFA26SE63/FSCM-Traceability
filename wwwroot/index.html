@@ -4,8 +4,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>Nhà máy · FSCM Traceability</title>
-    <link rel="stylesheet" href="/app.css?v=page-navigation-2" />
-    <script src="/app.js?v=page-navigation-2" defer></script>
+    <link rel="stylesheet" href="/app.css?v=session-navigation-3" />
+    <script src="/app.js?v=session-navigation-3" defer></script>
   </head>
   <body>
     <header>
@@ -17,15 +17,20 @@
         </div>
       </a>
       <nav id="main-nav" class="main-nav" aria-label="Quy trình traceability" hidden>
-        <a href="/production">01 · SẢN XUẤT &amp; ĐÓNG HÀNG</a>
-        <a href="/issuance">02 · PHÁT HÀNH ĐẾN KHO</a>
-        <a href="/traceability">03 · TRUY XUẤT NGUỒN GỐC</a>
+        <a id="nav-production" href="/production">Sản xuất &amp; đóng hàng</a>
+        <a id="nav-issuance" href="/issuance">Phát hành đến kho</a>
+        <a id="nav-traceability" href="/traceability">Truy xuất nguồn gốc</a>
       </nav>
       <div id="session"></div>
     </header>
     <main>
       <div id="notice" role="status" aria-live="polite"></div>
-      <section id="login" class="panel login">
+      <section id="session-loading" class="panel login session-loading" aria-live="polite">
+        <img class="login-logo" src="/fscm-logo.png" alt="FSCM" />
+        <p>Đang kiểm tra phiên đăng nhập…</p>
+      </section>
+      <section id="login" class="panel login" hidden>
+        <img class="login-logo" src="/fscm-logo.png" alt="FSCM" />
         <span class="eyebrow">CỔNG VẬN HÀNH NHÀ MÁY</span>
         <h1>Đăng nhập</h1>
         <p>
