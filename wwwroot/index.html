@@ -4,8 +4,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>Nhà máy · FSCM Traceability</title>
-    <link rel="stylesheet" href="/app.css?v=arial-2" />
-    <script src="/app.js?v=batch-labels-1" defer></script>
+    <link rel="stylesheet" href="/app.css?v=batch-serials-1" />
+    <script src="/app.js?v=batch-serials-1" defer></script>
   </head>
   <body>
     <header>
@@ -151,11 +151,7 @@
           <p id="batch-notice" role="status" aria-live="polite"></p>
           <section id="batch-detail"></section>
           <section class="mapping-section">
-            <h3>Danh sách mã đã cấp</h3>
-            <div class="mapping-tabs">
-              <button type="button" id="tab-cartons">Carton</button
-              ><button type="button" id="tab-units">Serial sản phẩm</button>
-            </div>
+            <h3>Danh sách carton và serial sản phẩm</h3>
             <form id="mapping-filter" class="mapping-filter">
               <label
                 >Pallet<select id="mapping-pallet">
@@ -164,7 +160,7 @@
               ><label
                 >Tìm mã / SKU<input
                   id="mapping-search"
-                  placeholder="PID / CID / UID / SKU"
+                  placeholder="Mã pallet / carton / serial / SKU"
                   autocomplete="off" /></label
               ><button>Lọc danh sách</button
               ><button type="button" id="mapping-reset">Bỏ lọc</button>

@@ -27,6 +27,8 @@ public sealed record MappingRow
     public string CartonCode { get; init; } = "";
     public string Sku { get; init; } = "";
     public string? UnitCode { get; init; }
+    /// <summary>Carton level only: every serial in the carton, in issue order.</summary>
+    public string[]? UnitCodes { get; init; }
     public int UnitsInCarton { get; init; }
     public DateOnly ProductionDate { get; init; }
     public DateOnly ExpirationDate { get; init; }
