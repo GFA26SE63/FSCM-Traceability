@@ -32,6 +32,9 @@ public sealed record MappingRow
     public DateOnly ExpirationDate { get; init; }
 }
 public sealed record MappingPage(MappingRow[] Items, int Page, int PageSize, int TotalCount);
+/// <summary>Everything printed on a whole-batch QR sheet: the batch, its pallets and (optionally) their cartons.</summary>
+public sealed record BatchLabelSheet(FactoryProductionBatch Batch, string Sku, BatchLabelPallet[] Pallets, bool IncludeCartons);
+public sealed record BatchLabelPallet(FactoryPallet Pallet, int CartonCount, FactoryCarton[] Cartons);
 
 public sealed class FactoryException(int status, string message) : Exception(message)
 {

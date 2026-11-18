@@ -86,6 +86,9 @@ public sealed class Program
             new { id = await service.SimulateAsync(request, c.Request.Headers["Idempotency-Key"].ToString(), Guid.Parse(c.User.FindFirstValue(ClaimTypes.NameIdentifier)!), await Token(c), ct) });
         admin.MapPost("/batches/{id:guid}/dispatch", async (Guid id, DispatchRequest request, HttpContext c, ProductionService service, CancellationToken ct) =>
             new { id = await service.DispatchAsync(id, request.DestinationWarehouseId, await Token(c), ct, request.PalletIds) });
+        // Whole-batch QR sheet (batch + pallets, optionally cartons). Admin UI only; not part of the FSCM integration API.
+        admin.MapGet("/batches/{id:guid}/labels", async (Guid id, ProductionService service, CancellationToken ct, bool cartons = false) =>
+            Results.Content(FactoryLabels.Batch(await service.BatchLabelsAsync(id, cartons, ct)), "text/html; charset=utf-8"));
         admin.MapGet("/pallets/{code}/manifest", (string code, ProductionService service, CancellationToken ct) => service.ManifestAsync(code, ct));
         admin.MapGet("/pallets/{code}/labels", async (string code, ProductionService service, CancellationToken ct) => Results.Content(FactoryLabels.Pallet(await service.ManifestAsync(code, ct)), "text/html; charset=utf-8"));
         admin.MapGet("/cartons/{code}/unit-labels", async (string code, ProductionService service, CancellationToken ct) => Results.Content(FactoryLabels.Units(await service.TraceAsync(code, ct)), "text/html; charset=utf-8"));

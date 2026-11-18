@@ -61,6 +61,22 @@ public sealed class ProductionService(FactoryDbContext source, IFscmGateway fscm
             cartonCounts.Values.Sum(), unitCounts.Values.Sum());
     }
 
+    /// <summary>Read-only data for the whole-batch QR sheet (codes as issued at creation).</summary>
+    public async Task<BatchLabelSheet> BatchLabelsAsync(Guid id, bool includeCartons, CancellationToken ct)
+    {
+        var batch = await source.Set<FactoryProductionBatch>().AsNoTracking().SingleOrDefaultAsync(x => x.Id == id, ct)
+            ?? throw FactoryException.NotFound("Không tìm thấy mẻ sản xuất.");
+        var pallets = await source.Set<FactoryPallet>().AsNoTracking().Where(x => x.ProductionBatchId == id).OrderBy(x => x.Code).ToArrayAsync(ct);
+        var palletIds = pallets.Select(p => p.Id).ToArray();
+        var cartons = await source.Set<FactoryCarton>().AsNoTracking().Where(c => palletIds.Contains(c.PalletId))
+            .OrderBy(c => c.Sequence).ToArrayAsync(ct);
+        var byPallet = cartons.GroupBy(c => c.PalletId).ToDictionary(g => g.Key, g => g.ToArray());
+        return new(batch, batch.Sku, pallets.Select(p => {
+            var own = byPallet.GetValueOrDefault(p.Id) ?? [];
+            return new BatchLabelPallet(p, own.Length, includeCartons ? own : []);
+        }).ToArray(), includeCartons);
+    }
+
     public static void ValidateMappingPage(string level, int page, int pageSize)
     {
         if (level is not ("cartons" or "units") || page is < 1 or > 1000000 || pageSize is < 1 or > 200)

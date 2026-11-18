@@ -23,6 +23,24 @@ public static class FactoryLabels
         foreach (var carton in manifest.Cartons) Label(html, carton.Code, $"CARTON · {manifest.Batch.UnitsPerCarton} sản phẩm", manifest.Sku, manifest.Batch);
         return html.Append("</html>").ToString();
     }
+    /// <summary>
+    /// Whole-batch sheet: the batch QR, one QR per pallet and, when asked, every carton QR grouped
+    /// under its pallet. Codes are the ones issued when the batch was created; nothing is re-issued.
+    /// </summary>
+    public static string Batch(BatchLabelSheet sheet)
+    {
+        var html = new StringBuilder(Start);
+        var cartons = sheet.Pallets.Sum(p => p.CartonCount);
+        Label(html, sheet.Batch.Code, $"BATCH NHÀ MÁY · {sheet.Pallets.Length} pallet · {cartons} carton", sheet.Sku, sheet.Batch);
+        foreach (var pallet in sheet.Pallets)
+        {
+            Label(html, pallet.Pallet.Code, $"PALLET · {pallet.CartonCount} carton", sheet.Sku, sheet.Batch);
+            if (!sheet.IncludeCartons) continue;
+            foreach (var carton in pallet.Cartons)
+                Label(html, carton.Code, $"CARTON · {sheet.Batch.UnitsPerCarton} sản phẩm", sheet.Sku, sheet.Batch);
+        }
+        return html.Append("</html>").ToString();
+    }
     public static string Units(SourceTrace trace)
     {
         if (trace.Carton is null) throw FactoryException.Validation("Chọn một carton để in serial.");
