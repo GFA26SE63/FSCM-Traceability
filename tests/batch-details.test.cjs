@@ -21,6 +21,10 @@ function find(node, text) {
   if (node.tagName === 'button' && node.textContent === text) return node;
   for (const child of node.children) { const found = find(child, text); if (found) return found; }
 }
+function findLink(node, text) {
+  if (node.tagName === 'a' && node.textContent === text) return node;
+  for (const child of node.children) { const found = findLink(child, text); if (found) return found; }
+}
 const batchId = '11111111-1111-1111-1111-111111111111';
 const batch = { id: batchId, code: 'BID-F01-20261113-A-0001', factoryCode: 'F01', productionLine: 'A', productionDate: '2026-11-13', expirationDate: '2026-11-21', unitsPerCarton: 12 };
 const pallet = { id: 'pallet', code: 'PID-F01-20261113-A-0001-0001', status: 'Dispatched', destinationWarehouseId: 'warehouse' };
@@ -43,8 +47,8 @@ async function setup(hash = '') {
       if (url.pathname === '/api/session') return { status: 401, ok: false, json: async () => ({}) };
       if (url.pathname === '/api/batches') data = [{ batch, sku: 'SKU001', productName: 'Product', pallets: [pallet], cartonCount: 20, unitCount: 240 }];
       else if (url.pathname === '/api/batches/' + batchId) data = { batch, sku: 'SKU001', productName: 'Product', pallets: [{ pallet, cartonCount: 20, unitCount: 240 }], cartonCount: 20, unitCount: 240 };
-      else if (url.pathname.endsWith('/mapping')) data = { page: Number(url.searchParams.get('page')), pageSize: 50, totalCount: url.searchParams.get('level') === 'units' ? (url.searchParams.get('carton') ? 12 : 240) : 20,
-        items: [{ batchCode: batch.code, palletCode: pallet.code, cartonCode: carton, sku: 'SKU001', unitCode: 'UID-F01-20261113-A-0001-000001', unitsInCarton: 12, productionDate: batch.productionDate, expirationDate: batch.expirationDate }] };
+      else if (url.pathname.endsWith('/mapping')) data = { page: Number(url.searchParams.get('page')), pageSize: 50, totalCount: 120,
+        items: [{ batchCode: batch.code, palletCode: pallet.code, cartonCode: carton, sku: 'SKU001', unitCode: 'UID-F01-20261113-A-0001-000001', unitsInCarton: 12, unitCodes: Array.from({ length: 12 }, (_, i) => 'UID-F01-20261113-A-0001-' + String(i + 1).padStart(6, '0')), productionDate: batch.productionDate, expirationDate: batch.expirationDate }] };
       else throw new Error('Unexpected request ' + request);
       return { status: 200, ok: true, json: async () => data };
     },
@@ -66,47 +70,48 @@ test('clicking the actual batch detail action opens a visible dialog and loads p
   assert.ok(app.requests.some(url => url.includes('/mapping?')));
 });
 
-test('carton action opens serials with both pallet and carton filters preserved', async () => {
+test('carton table shows each carton with its serials in one table, no tabs or serial button', async () => {
   const app = await setup(); await app.run(`openBatch('${batchId}')`);
-  const action = find(app.nodes['mapping-results'], 'Xem serial'); assert.ok(action); await action.onclick();
   const url = new URL(app.requests.at(-1), 'http://factory.test/');
-  assert.equal(url.searchParams.get('level'), 'units');
-  assert.equal(url.searchParams.get('pallet'), pallet.code); assert.equal(url.searchParams.get('carton'), carton);
-  assert.ok(app.nodes['mapping-results'].textContent.includes('UID-F01-20261113-A-0001-000001'));
-  assert.equal(app.nodes['tab-units'].attributes['aria-pressed'], 'true');
+  assert.equal(url.searchParams.get('level'), 'cartons');
+  const text = app.nodes['mapping-results'].textContent;
+  assert.ok(text.includes(carton)); assert.ok(text.includes('UID-F01-20261113-A-0001-000001')); assert.ok(text.includes('UID-F01-20261113-A-0001-000012'));
+  assert.ok(text.includes('Serial sản phẩm')); assert.ok(!text.includes('NSX / HSD')); assert.ok(!text.includes('Sản phẩm trong carton'));
+  assert.equal(find(app.nodes['mapping-results'], 'Xem serial'), undefined);
+  assert.ok(findLink(app.nodes['mapping-results'], 'In QR sản phẩm'));
 });
 
-test('next page retains mapping level and filters instead of loading unrelated cartons', async () => {
+test('pallet "Xem carton" filters the carton table and paging keeps the pallet filter', async () => {
   const app = await setup(); await app.run(`openBatch('${batchId}')`);
   await find(app.nodes['batch-detail'], 'Xem carton').onclick();
-  await app.nodes['tab-units'].onclick();
   await find(app.nodes['mapping-pager'], 'Trang sau').onclick();
   const url = new URL(app.requests.at(-1), 'http://factory.test/');
-  assert.equal(url.searchParams.get('page'), '2'); assert.equal(url.searchParams.get('level'), 'units'); assert.equal(url.searchParams.get('pallet'), pallet.code); assert.equal(url.searchParams.get('carton'), null);
+  assert.equal(url.searchParams.get('page'), '2'); assert.equal(url.searchParams.get('level'), 'cartons'); assert.equal(url.searchParams.get('pallet'), pallet.code); assert.equal(url.searchParams.get('carton'), null);
 });
 
-test('saved detail URL restores a batch and serial filter without depending on the latest-100 list', async () => {
+test('saved detail URL restores a batch and pallet filter without depending on the latest-100 list', async () => {
   const app = await setup('#' + new URLSearchParams({ batch: batchId, level: 'units', carton, pallet: pallet.code, page: '1' }));
   await app.run('restoreBatchView()');
   assert.equal(app.nodes['batch-dialog'].open, true);
-  assert.equal(new URL(app.requests.at(-1), 'http://factory.test/').searchParams.get('carton'), carton);
+  const url = new URL(app.requests.at(-1), 'http://factory.test/');
+  assert.equal(url.searchParams.get('pallet'), pallet.code); assert.equal(url.searchParams.get('level'), 'cartons'); assert.equal(url.searchParams.get('carton'), null);
   assert.ok(!app.requests.includes('/api/batches'));
   app.nodes['close-batch'].onclick(); assert.equal(app.nodes['batch-dialog'].open, false); assert.equal(app.location.hash, '');
 });
 
 
-test('searching within a carton keeps the selected parent chain and resets pagination', async () => {
+test('searching a serial keeps the pallet filter and resets pagination', async () => {
   const app = await setup(); await app.run(`openBatch('${batchId}')`);
-  await find(app.nodes['mapping-results'], 'Xem serial').onclick();
+  await find(app.nodes['batch-detail'], 'Xem carton').onclick();
+  app.nodes['mapping-pallet'].value = pallet.code;
   app.nodes['mapping-search'].value = 'uid-000001';
   app.nodes['mapping-filter'].onsubmit({ preventDefault() {} });
   await new Promise(resolve => setImmediate(resolve));
   const url = new URL(app.requests.at(-1), 'http://factory.test/');
   assert.equal(url.searchParams.get('search'), 'uid-000001');
-  assert.equal(url.searchParams.get('carton'), carton); assert.equal(url.searchParams.get('pallet'), pallet.code);
+  assert.equal(url.searchParams.get('pallet'), pallet.code);
   assert.equal(url.searchParams.get('page'), '1');
 });
-
 
 test('inspection details show missing and quarantined cartons without treating them as accepted', async () => {
   const app = await setup(); await app.run(`openBatch('${batchId}')`);
@@ -124,7 +129,9 @@ test('dispatch form sends only selected packed pallets and excludes already disp
     warehouses = [{ id: 'warehouse-2', code: 'W2', name: 'Warehouse 2', isActive: true }]; renderBatch();
     globalThis.sent = []; api = async (...args) => { sent.push(args); return {}; }; refresh = async () => {};`);
   const form = app.nodes['batch-detail'].children.find(n => n.tagName === 'form');
-  const checks = form.children.flatMap(n => n.children).filter(n => n.type === 'checkbox');
+  const all = node => [node, ...node.children.flatMap(all)];
+  assert.equal(all(form).filter(n => n.type === 'checkbox').length, 0);
+  const checks = all(app.nodes['batch-detail']).filter(n => n.type === 'checkbox');
   assert.equal(checks.length, 2);
   checks[1].checked = true; checks[1].onchange();
   form.children[0].children[0].value = 'warehouse-2';
@@ -133,10 +140,6 @@ test('dispatch form sends only selected packed pallets and excludes already disp
   assert.deepEqual(sent[0], ['/api/batches/' + batchId + '/dispatch', 'POST', { destinationWarehouseId: 'warehouse-2', palletIds: ['new-2'] }]);
 });
 
-function findLink(node, text) {
-  if (node.tagName === 'a' && node.textContent === text) return node;
-  for (const child of node.children) { const found = findLink(child, text); if (found) return found; }
-}
 
 test('batch list and detail dialog offer whole-batch QR sheets', async () => {
   const app = await setup(); await app.run('refresh()');

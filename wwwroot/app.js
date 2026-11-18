@@ -56,25 +56,29 @@ function renderBatch() {
   info.append(detail('SKU / sản phẩm', view.sku + ' · ' + view.productName), detail('Nhà máy / line', view.batch.factoryCode + ' · ' + view.batch.productionLine),
     detail('NSX / HSD', date(view.batch.productionDate) + ' / ' + date(view.batch.expirationDate)),
     detail('Tổng mã đã cấp', `${view.pallets.length} pallet · ${view.cartonCount} carton · ${view.unitCount} sản phẩm`), detail('Đóng gói', view.batch.unitsPerCarton + ' sản phẩm/carton'));
-  const labels = el('div', null, 'row-actions');
+  const labels = el('div', null, 'row-actions label-actions');
   labels.append(link('In QR mẻ (batch + pallet)', batchLabelUrl(view.batch.id)), link('In QR đầy đủ (kèm carton)', batchLabelUrl(view.batch.id, true)));
   section.replaceChildren(info, labels);
-  if (view.pallets.some(p => p.pallet.status === 'Packed')) {
-    const form = el('form', null, 'scan'), label = el('label', 'Kho nhận'), select = el('select'); select.required = true; select.append(new Option('Chọn kho nhận', ''));
+  // Each packed pallet is ticked in its own row; the warehouse and the submit button sit above the table.
+  const packed = view.pallets.some(p => p.pallet.status === 'Packed'), selectedPallets = new Set();
+  if (packed) {
+    const form = el('form', null, 'scan dispatch-form'), label = el('label', 'Kho nhận'), select = el('select'); select.required = true; select.append(new Option('Chọn kho nhận', ''));
     warehouses.filter(w => w.isActive).forEach(w => select.append(new Option(w.code + ' · ' + w.name, w.id))); label.append(select); form.append(label);
-    const selectedPallets = new Set();
-    view.pallets.filter(p => p.pallet.status === 'Packed').forEach(({ pallet }) => {
-      const choice = el('label', pallet.code), checkbox = el('input'); checkbox.type = 'checkbox';
-      checkbox.onchange = () => checkbox.checked ? selectedPallets.add(pallet.id) : selectedPallets.delete(pallet.id);
-      choice.prepend(checkbox); form.append(choice);
-    });
     form.append(el('button', 'Phát hành pallet đã chọn', 'primary'));
-    form.onsubmit = e => { e.preventDefault(); run(async () => { await api('/api/batches/' + view.batch.id + '/dispatch', 'POST', { destinationWarehouseId: select.value, palletIds: [...selectedPallets] }); await refresh(); notice('Đã phát hành pallet. Thủ kho có thể quét nhận trên phiếu nhập FSCM.'); }); }; section.append(form);
+    form.onsubmit = e => { e.preventDefault(); run(async () => {
+      if (!selectedPallets.size) throw new Error('Tick chọn ít nhất một pallet cần phát hành.');
+      await api('/api/batches/' + view.batch.id + '/dispatch', 'POST', { destinationWarehouseId: select.value, palletIds: [...selectedPallets] }); await refresh(); notice('Đã phát hành pallet. Thủ kho có thể quét nhận trên phiếu nhập FSCM.'); }); };
+    section.append(form);
   }
-  section.append(table(['Pallet code', 'Carton', 'Sản phẩm', 'Trạng thái', 'Kho đích', 'Mapping / QR'], view.pallets.map(row => {
+  section.append(table([...(packed ? ['Chọn'] : []), 'Pallet code', 'Carton', 'Sản phẩm', 'Trạng thái', 'Kho đích', 'Mapping / QR'], view.pallets.map(row => {
     const p = row.pallet, actions = el('div', null, 'row-actions');
-    actions.append(button('Xem carton', () => chooseMapping('cartons', p.code, '')), link('In QR', '/api/pallets/' + encodeURIComponent(p.code) + '/labels'));
-    return [code(p.code), row.cartonCount, row.unitCount, status[p.status], warehouseName(p.destinationWarehouseId), actions];
+    actions.append(button('Xem carton', () => chooseMapping(p.code)), link('In QR', '/api/pallets/' + encodeURIComponent(p.code) + '/labels'));
+    const cells = [code(p.code), row.cartonCount, row.unitCount, status[p.status], warehouseName(p.destinationWarehouseId), actions];
+    if (!packed) return cells;
+    if (p.status !== 'Packed') return ['', ...cells];
+    const checkbox = el('input'); checkbox.type = 'checkbox'; checkbox.className = 'pallet-check'; checkbox.setAttribute('aria-label', 'Chọn phát hành ' + p.code);
+    checkbox.onchange = () => checkbox.checked ? selectedPallets.add(p.id) : selectedPallets.delete(p.id);
+    return [checkbox, ...cells];
   })));
   const inspectionRows = view.pallets.flatMap(({ pallet }) => {
     if (!pallet.receiptInspectionJson) return [];
@@ -89,10 +93,18 @@ function renderBatch() {
   view.pallets.forEach(row => $('mapping-pallet').append(new Option(row.pallet.code, row.pallet.code)));
   $('mapping-pallet').value = mapping.pallet; $('mapping-search').value = mapping.search;
 }
-async function chooseMapping(level, pallet = mapping.pallet, carton = '') {
-  mapping = { ...mapping, level, pallet, carton, search: '', page: 1 };
+async function chooseMapping(pallet = mapping.pallet) {
+  mapping = { ...mapping, level: 'cartons', pallet, carton: '', search: '', page: 1 };
   $('mapping-search').value = ''; $('mapping-pallet').value = pallet;
   await loadMapping(); $('mapping-results').scrollIntoView({ block: 'nearest' });
+}
+// All serials of a carton in one cell; a long carton shows its range and expands in place.
+function serialCell(codes) {
+  if (!codes?.length) return el('span', '—');
+  const list = el('div', null, 'serials'); codes.forEach(c => list.append(code(c)));
+  if (codes.length <= 12) return list;
+  const box = el('details'), summary = el('summary', `${codes.length} serial · ${codes[0]} → ${codes[codes.length - 1]}`);
+  box.append(summary, list); return box;
 }
 async function loadMapping() {
   const params = new URLSearchParams({ level: mapping.level, page: String(mapping.page), pageSize: String(mapping.pageSize) });
@@ -102,15 +114,12 @@ async function loadMapping() {
   if (!$('batch-dialog').open || selected !== requestedBatch || !batchView) return;
   const lastPage = Math.max(1, Math.ceil(result.totalCount / result.pageSize));
   if (result.page > lastPage) { mapping.page = lastPage; return loadMapping(); }
-  $('tab-cartons').setAttribute('aria-pressed', String(mapping.level === 'cartons')); $('tab-units').setAttribute('aria-pressed', String(mapping.level === 'units'));
-  $('mapping-scope').textContent = [batchView.batch.code, mapping.pallet, mapping.carton].filter(Boolean).join(' → ');
-  const unitMode = mapping.level === 'units';
-  $('mapping-results').replaceChildren(table(unitMode ? ['Pallet', 'Carton', 'Serial sản phẩm', 'SKU', 'NSX / HSD'] : ['Pallet', 'Carton', 'SKU', 'Sản phẩm trong carton', 'NSX / HSD', 'Mapping / QR'], result.items.map(row => {
-    if (unitMode) return [code(row.palletCode), code(row.cartonCode), code(row.unitCode), row.sku, date(row.productionDate) + ' / ' + date(row.expirationDate)];
-    const actions = el('div', null, 'row-actions'); actions.append(button('Xem serial', () => chooseMapping('units', row.palletCode, row.cartonCode)), link('In QR sản phẩm', '/api/cartons/' + encodeURIComponent(row.cartonCode) + '/unit-labels'));
-    return [code(row.palletCode), code(row.cartonCode), row.sku, row.unitsInCarton, date(row.productionDate) + ' / ' + date(row.expirationDate), actions];
+  $('mapping-scope').textContent = [batchView.batch.code, mapping.pallet].filter(Boolean).join(' → ');
+  $('mapping-results').replaceChildren(table(['Pallet', 'Carton', 'Serial sản phẩm', 'Mapping / QR'], result.items.map(row => {
+    const actions = el('div', null, 'row-actions'); actions.append(link('In QR sản phẩm', '/api/cartons/' + encodeURIComponent(row.cartonCode) + '/unit-labels'));
+    return [code(row.palletCode), code(row.cartonCode), serialCell(row.unitCodes), actions];
   })));
-  const pages = Math.max(1, Math.ceil(result.totalCount / result.pageSize)), summary = el('span', `${result.totalCount} ${unitMode ? 'serial sản phẩm' : 'carton'} · Trang ${result.page}/${pages}`), controls = el('div', null, 'pager-buttons');
+  const pages = Math.max(1, Math.ceil(result.totalCount / result.pageSize)), summary = el('span', `${result.totalCount} carton · Trang ${result.page}/${pages}`), controls = el('div', null, 'pager-buttons');
   const previous = button('Trang trước', async () => { mapping.page--; await loadMapping(); }); previous.disabled = result.page <= 1;
   const next = button('Trang sau', async () => { mapping.page++; await loadMapping(); }); next.disabled = result.page >= pages;
   controls.append(previous, next); $('mapping-pager').replaceChildren(summary, controls); saveBatchView();
@@ -119,15 +128,14 @@ async function restoreBatchView() {
   const params = new URLSearchParams(location.hash.slice(1)), id = params.get('batch');
   if (!id || !/^[0-9a-f-]{36}$/i.test(id)) return;
   selected = id;
-  mapping = { ...mapping, level: params.get('level') === 'units' ? 'units' : 'cartons', pallet: params.get('pallet') || '', carton: params.get('carton') || '', search: params.get('search') || '', page: Math.max(1, Math.min(1000000, Number(params.get('page')) || 1)) };
+  // Older links may carry level=units / carton=...; the single carton+serial table ignores them.
+  mapping = { ...mapping, level: 'cartons', pallet: params.get('pallet') || '', carton: '', search: params.get('search') || '', page: Math.max(1, Math.min(1000000, Number(params.get('page')) || 1)) };
   await openBatch(id, false);
 }
 $('close-batch').onclick = () => $('batch-dialog').close();
 $('batch-dialog').addEventListener('close', () => { selected = ''; batchView = null; history.replaceState(null, '', location.pathname + location.search); });
-$('tab-cartons').onclick = () => run(() => chooseMapping('cartons'));
-$('tab-units').onclick = () => run(() => chooseMapping('units'));
-$('mapping-filter').onsubmit = e => { e.preventDefault(); run(async () => { const pallet = $('mapping-pallet').value; mapping = { ...mapping, pallet, carton: pallet === mapping.pallet ? mapping.carton : '', search: $('mapping-search').value.trim(), page: 1 }; await loadMapping(); }); };
-$('mapping-reset').onclick = () => run(() => chooseMapping(mapping.level, '', ''));
+$('mapping-filter').onsubmit = e => { e.preventDefault(); run(async () => { mapping = { ...mapping, pallet: $('mapping-pallet').value, carton: '', search: $('mapping-search').value.trim(), page: 1 }; await loadMapping(); }); };
+$('mapping-reset').onclick = () => run(() => chooseMapping(''));
 async function loadCatalog() {
   const products = await api('/api/catalog/products'); warehouses = await api('/api/catalog/warehouses');
   $('products').replaceChildren(new Option('Chọn SKU đang phát hành', '')); products.filter(p => p.status === 'Published').forEach(p => $('products').append(new Option(p.sku + ' · ' + p.name, p.id)));
