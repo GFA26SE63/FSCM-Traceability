@@ -5,3 +5,27 @@ dialog{width:min(1380px,96vw);max-height:92vh;overflow:auto;padding:26px;border:
 input,select,textarea,button,code,pre,kbd,samp,svg text,svg tspan{font-family:Arial,sans-serif}
 .label-actions{margin-bottom:20px}.dispatch-form{margin-bottom:12px}.pallet-check{width:18px;height:18px;margin:0;cursor:pointer}.serials{display:flex;flex-wrap:wrap;gap:4px 12px}.serials code{white-space:nowrap}details summary{cursor:pointer;color:#234b55;font-weight:600;margin-bottom:6px}
 .serial-dialog{width:min(760px,94vw)}
+.issuance-subtabs{display:flex;gap:8px;flex-wrap:wrap}
+.subtab-btn{background:#fff;border:1px solid #c9d9dc;padding:8px 14px;border-radius:7px;cursor:pointer;font-weight:600;font-size:12px;color:#234b55}
+.subtab-btn:hover{background:#eef8f5}
+.subtab-btn.active{background:#087d69;color:#fff;border-color:#087d69}
+.dispatch-toolbar{margin-bottom:16px}
+.dispatch-action-card{background:#f5faf8;border:1px solid #cce5dd;border-radius:10px;padding:18px;margin-bottom:14px}
+.card-title{font-size:13px;color:#0d4e41;margin-bottom:12px}
+.card-fields{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+.card-fields .wide-field{grid-column:span 2}
+.dispatch-summary-row{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-top:14px;padding-top:12px;border-top:1px solid #d4eae3}
+.summary-text{font-size:13px;color:#204750}
+.dispatch-filters-bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:#fbfcfc;padding:10px 14px;border:1px solid #e1e9eb;border-radius:8px}
+.dispatch-filters-bar input{max-width:240px}
+.dispatch-filters-bar select{max-width:180px}
+.batch-select-actions{display:flex;gap:6px}
+.btn-sm{padding:6px 10px;font-size:12px}
+.badge{display:inline-block;padding:3px 9px;border-radius:12px;font-size:11px;font-weight:600;white-space:nowrap}
+.badge-warning{background:#fff4e5;color:#9b4900;border:1px solid #ffe1bf}
+.badge-success{background:#eaf7f1;color:#16583f;border:1px solid #c2ebd9}
+.badge-info{background:#e8f4fd;color:#085ab9;border:1px solid #bee0f8}
+.dispatch-dialog{width:min(1100px,96vw)}
+.view-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;gap:16px}
+@media(max-width:900px){.card-fields{grid-template-columns:repeat(2,minmax(0,1fr))}.card-fields .wide-field{grid-column:span 2}.dispatch-summary-row{flex-direction:column;align-items:stretch}}
+@media(max-width:550px){.card-fields{grid-template-columns:1fr}.card-fields .wide-field{grid-column:auto}}

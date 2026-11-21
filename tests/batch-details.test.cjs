@@ -188,3 +188,78 @@ test('batch list and detail dialog offer whole-batch QR sheets', async () => {
   assert.equal(findLink(app.nodes['batch-detail'], 'In QR mẻ (batch + pallet)').href, '/api/batches/' + batchId + '/labels');
   assert.equal(findLink(app.nodes['batch-detail'], 'In QR đầy đủ (kèm carton)').href, '/api/batches/' + batchId + '/labels?cartons=true');
 });
+
+test('issuance section provides 3 subtabs for direct pallet dispatch, dispatch book, and batch list', async () => {
+  const app = await setup('', '/issuance');
+  assert.equal(app.nodes['view-ready-pallets'].hidden, false);
+  assert.equal(app.nodes['view-dispatch-notes'].hidden, true);
+  assert.equal(app.nodes['view-batch-list'].hidden, true);
+
+  await app.run("setIssuanceSubtab('dispatch-notes')");
+  assert.equal(app.nodes['view-ready-pallets'].hidden, true);
+  assert.equal(app.nodes['view-dispatch-notes'].hidden, false);
+  assert.equal(app.nodes['view-batch-list'].hidden, true);
+
+  await app.run("setIssuanceSubtab('batch-list')");
+  assert.equal(app.nodes['view-ready-pallets'].hidden, true);
+  assert.equal(app.nodes['view-dispatch-notes'].hidden, true);
+  assert.equal(app.nodes['view-batch-list'].hidden, false);
+});
+
+test('ready pallets table renders and allows selecting pallets to create factory dispatch note', async () => {
+  const app = await setup('', '/issuance');
+  const readyPalletsData = [
+    { palletId: 'p-1', palletCode: 'PID-F01-20261121-A-0001-0001', batchId: 'b-1', batchCode: 'BID-F01-20261121-A-0001', sku: 'SKU001', productName: 'Sữa chua', productionLine: 'A', productionDate: '2026-11-21', expirationDate: '2026-12-05', cartonCount: 10, unitCount: 120 },
+    { palletId: 'p-2', palletCode: 'PID-F01-20261121-B-0001-0001', batchId: 'b-2', batchCode: 'BID-F01-20261121-B-0001', sku: 'SKU002', productName: 'Sữa chua nha đam', productionLine: 'B', productionDate: '2026-11-21', expirationDate: '2026-12-05', cartonCount: 10, unitCount: 120 }
+  ];
+  app.context.readyPalletsData = readyPalletsData;
+  app.run(`readyPallets = readyPalletsData; warehouses = [{ id: 'wh-1', code: 'WH01', name: 'Kho Thủ Đức', isActive: true }]; renderReadyPallets();`);
+  
+  const text = app.nodes['ready-pallets-table'].textContent;
+  assert.ok(text.includes('PID-F01-20261121-A-0001-0001'));
+  assert.ok(text.includes('PID-F01-20261121-B-0001-0001'));
+
+  // Select all pallets
+  app.nodes['btn-select-all-pallets'].onclick();
+  assert.equal(app.run('selectedReadyPalletIds.size'), 2);
+  assert.ok(app.nodes['ready-selected-summary'].textContent.includes('2 pallet'));
+  assert.ok(app.nodes['ready-selected-summary'].textContent.includes('20 thùng'));
+  assert.ok(app.nodes['ready-selected-summary'].textContent.includes('240 SP'));
+
+  // Set warehouse and check dispatch submission
+  app.nodes['ready-destination-warehouse'].value = 'wh-1';
+  app.nodes['ready-vehicle-number'].value = '59C-888.88';
+  app.nodes['ready-driver-name'].value = 'Tài xế Ba';
+  app.run(`globalThis.dispatchedData = []; api = async (url, method, body) => {
+    dispatchedData.push({ url, method, body });
+    return { id: 'note-1', code: 'PXN-F01-20261121-0001', palletCount: 2 };
+  }; refresh = async () => {}; openDispatchNote = async () => {};`);
+
+  await app.nodes['btn-create-dispatch'].onclick();
+  const dispatched = JSON.parse(app.run('JSON.stringify(dispatchedData)'));
+  assert.equal(dispatched[0].url, '/api/dispatches');
+  assert.equal(dispatched[0].method, 'POST');
+  assert.equal(dispatched[0].body.destinationWarehouseId, 'wh-1');
+  assert.equal(dispatched[0].body.vehicleNumber, '59C-888.88');
+  assert.equal(dispatched[0].body.driverName, 'Tài xế Ba');
+  assert.deepEqual(dispatched[0].body.palletIds.sort(), ['p-1', 'p-2'].sort());
+});
+
+test('dispatch notes table renders factory dispatch notes with print link and status badge', async () => {
+  const app = await setup('', '/issuance');
+  const notesData = [
+    { id: 'note-1', code: 'PXN-F01-20261121-0001', factoryCode: 'F01', destinationWarehouseId: 'wh-1', destinationWarehouseName: 'Kho Thủ Đức', vehicleNumber: '59C-888.88', driverName: 'Tài xế Ba', palletCount: 2, cartonCount: 20, unitCount: 240, dispatchedAt: '2026-11-21T14:30:00Z', createdByName: 'Admin', status: 'Dispatched', palletCodes: ['PID-1', 'PID-2'] }
+  ];
+  app.context.notesData = notesData;
+  app.run(`dispatchNotes = notesData; renderDispatchNotes();`);
+
+  const text = app.nodes['dispatch-notes-table'].textContent;
+  assert.ok(text.includes('PXN-F01-20261121-0001'));
+  assert.ok(text.includes('Kho Thủ Đức'));
+  assert.ok(text.includes('59C-888.88 · Tài xế Ba'));
+  assert.ok(text.includes('Đang vận chuyển'));
+  assert.ok(find(app.nodes['dispatch-notes-table'], 'Xem chi tiết'));
+  const printLink = findLink(app.nodes['dispatch-notes-table'], 'In Phiếu (A4)');
+  assert.ok(printLink);
+  assert.equal(printLink.href, '/api/dispatches/note-1/print');
+});

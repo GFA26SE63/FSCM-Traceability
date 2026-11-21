@@ -36,6 +36,67 @@ public sealed record MappingPage(MappingRow[] Items, int Page, int PageSize, int
 public sealed record BatchLabelSheet(FactoryProductionBatch Batch, string Sku, BatchLabelPallet[] Pallets, bool IncludeCartons);
 public sealed record BatchLabelPallet(FactoryPallet Pallet, int CartonCount, FactoryCarton[] Cartons);
 
+public sealed record ReadyPalletView(
+    Guid PalletId,
+    string PalletCode,
+    Guid BatchId,
+    string BatchCode,
+    string Sku,
+    string ProductName,
+    string ProductionLine,
+    DateOnly ProductionDate,
+    DateOnly ExpirationDate,
+    int CartonCount,
+    int UnitCount
+);
+
+public sealed record CreateDispatchNoteRequest(
+    Guid DestinationWarehouseId,
+    Guid[] PalletIds,
+    string? VehicleNumber = null,
+    string? DriverName = null,
+    string? Note = null
+);
+
+public sealed record FactoryDispatchNoteSummary(
+    Guid Id,
+    string Code,
+    string FactoryCode,
+    Guid DestinationWarehouseId,
+    string DestinationWarehouseName,
+    string? VehicleNumber,
+    string? DriverName,
+    string? Note,
+    int PalletCount,
+    int CartonCount,
+    int UnitCount,
+    DateTimeOffset DispatchedAt,
+    string CreatedByName,
+    string Status,
+    string[] PalletCodes
+);
+
+public sealed record FactoryDispatchPalletItem(
+    Guid PalletId,
+    string PalletCode,
+    string BatchCode,
+    string Sku,
+    string ProductName,
+    DateOnly ProductionDate,
+    DateOnly ExpirationDate,
+    int CartonCount,
+    int UnitCount,
+    string Status,
+    DateTimeOffset? ReceivedAt,
+    string? ReceiptInspectionJson
+);
+
+public sealed record FactoryDispatchNoteDetail(
+    FactoryDispatchNote Note,
+    FactoryDispatchPalletItem[] Pallets,
+    string Status
+);
+
 public sealed class FactoryException(int status, string message) : Exception(message)
 {
     public int Status { get; } = status;

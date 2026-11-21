@@ -31,7 +31,28 @@ public sealed class FactoryPallet
     public DateTimeOffset? DispatchedAt { get; set; }
     public DateTimeOffset? ReceivedAt { get; set; }
     public string? ReceiptInspectionJson { get; set; }
+    public Guid? DispatchNoteId { get; set; }
+    public string? DispatchCode { get; set; }
     public int Version { get; set; } = 1;
+}
+
+public sealed class FactoryDispatchNote
+{
+    public Guid Id { get; set; }
+    public string Code { get; set; } = "";
+    public string FactoryCode { get; set; } = "F01";
+    public Guid DestinationWarehouseId { get; set; }
+    public string DestinationWarehouseName { get; set; } = "";
+    public string? VehicleNumber { get; set; }
+    public string? DriverName { get; set; }
+    public string? Note { get; set; }
+    public int PalletCount { get; set; }
+    public int CartonCount { get; set; }
+    public int UnitCount { get; set; }
+    public DateTimeOffset DispatchedAt { get; set; }
+    public Guid CreatedByUserId { get; set; }
+    public string CreatedByName { get; set; } = "";
+    public string PalletCodesJson { get; set; } = "[]";
 }
 
 public sealed class FactoryCarton

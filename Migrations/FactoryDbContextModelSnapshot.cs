@@ -49,6 +49,73 @@ namespace Fscm.Traceability.Migrations
                     b.ToTable("FACTORY_CARTON", (string)null);
                 });
 
+            modelBuilder.Entity("Fscm.Traceability.Models.FactoryDispatchNote", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("CartonCount")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
+                    b.Property<string>("CreatedByName")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)");
+
+                    b.Property<Guid>("CreatedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("DestinationWarehouseId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("DestinationWarehouseName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTimeOffset>("DispatchedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DriverName")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("FactoryCode")
+                        .IsRequired()
+                        .HasMaxLength(12)
+                        .HasColumnType("character varying(12)");
+
+                    b.Property<string>("Note")
+                        .HasColumnType("text");
+
+                    b.Property<string>("PalletCodesJson")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("PalletCount")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("UnitCount")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("VehicleNumber")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Code")
+                        .IsUnique();
+
+                    b.ToTable("FACTORY_DISPATCH_NOTE", (string)null);
+                });
+
             modelBuilder.Entity("Fscm.Traceability.Models.FactoryPallet", b =>
                 {
                     b.Property<string>("ReceiptInspectionJson").HasColumnType("text");
@@ -60,6 +127,13 @@ namespace Fscm.Traceability.Migrations
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
+
+                    b.Property<Guid?>("DispatchNoteId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("DispatchCode")
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
 
                     b.Property<Guid?>("DestinationWarehouseId")
                         .HasColumnType("uuid");
@@ -88,6 +162,8 @@ namespace Fscm.Traceability.Migrations
 
                     b.HasIndex("Code")
                         .IsUnique();
+
+                    b.HasIndex("DispatchNoteId");
 
                     b.HasIndex("ProductionBatchId");
 
@@ -218,6 +294,11 @@ namespace Fscm.Traceability.Migrations
 
             modelBuilder.Entity("Fscm.Traceability.Models.FactoryPallet", b =>
                 {
+                    b.HasOne("Fscm.Traceability.Models.FactoryDispatchNote", null)
+                        .WithMany()
+                        .HasForeignKey("DispatchNoteId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("Fscm.Traceability.Models.FactoryProductionBatch", null)
                         .WithMany()
                         .HasForeignKey("ProductionBatchId")

@@ -144,11 +144,59 @@
           <div class="section-title">
             <div>
               <span class="eyebrow">02 · PHÁT HÀNH ĐẾN KHO</span>
-              <h2>Mẻ sản xuất gần đây</h2>
+              <h2>Xuất kho &amp; Phát hành Pallet đến Nhà phân phối</h2>
             </div>
-            <span class="muted">Tối đa 100 mẻ gần nhất</span>
+            <div class="issuance-subtabs">
+              <button type="button" id="tab-ready-pallets" class="subtab-btn active">Lập phiếu xuất xưởng (Xuất Pallet)</button>
+              <button type="button" id="tab-dispatch-notes" class="subtab-btn">Sổ phiếu xuất kho nhà máy</button>
+              <button type="button" id="tab-batch-list" class="subtab-btn">Mẻ sản xuất gần đây</button>
+            </div>
           </div>
-          <div id="batches" class="table-wrap"></div>
+
+          <!-- View 1: Lập phiếu xuất xưởng (Xuất pallet trực tiếp qua danh sách pallet sẵn sàng) -->
+          <div id="view-ready-pallets" class="issuance-view">
+            <div class="dispatch-toolbar">
+              <div class="dispatch-action-card">
+                <div class="card-title"><strong>Thông tin lập phiếu xuất xưởng</strong></div>
+                <div class="card-fields">
+                  <label>Kho nhận hàng (*)<select id="ready-destination-warehouse" required><option value="">-- Chọn kho đích tiếp nhận --</option></select></label>
+                  <label>Biển số xe<input id="ready-vehicle-number" placeholder="VD: 59C-123.45" maxlength="50" /></label>
+                  <label>Tài xế / Người vận chuyển<input id="ready-driver-name" placeholder="VD: Nguyễn Văn A" maxlength="100" /></label>
+                  <label class="wide-field">Ghi chú xuất xưởng<input id="ready-dispatch-note" placeholder="VD: Xuất hàng theo đơn điều chuyển" maxlength="200" /></label>
+                </div>
+                <div class="dispatch-summary-row">
+                  <span id="ready-selected-summary" class="summary-text">Đã chọn: <strong>0</strong> pallet (<strong>0</strong> thùng · <strong>0</strong> sản phẩm)</span>
+                  <button type="button" id="btn-create-dispatch" class="primary" disabled>Tạo phiếu xuất kho &amp; Phát hành pallet</button>
+                </div>
+              </div>
+              <div class="dispatch-filters-bar">
+                <input id="ready-search" placeholder="Tìm kiếm pallet, mẻ, SKU..." autocomplete="off" />
+                <select id="ready-sku-filter"><option value="">Tất cả SKU</option></select>
+                <select id="ready-line-filter"><option value="">Tất cả Line</option><option>A</option><option>B</option><option>C</option><option>D</option></select>
+                <div class="batch-select-actions">
+                  <button type="button" id="btn-select-all-pallets" class="btn-sm">Chọn tất cả</button>
+                  <button type="button" id="btn-deselect-all-pallets" class="btn-sm">Bỏ chọn tất cả</button>
+                </div>
+                <span id="ready-pallet-count-label" class="muted"></span>
+              </div>
+            </div>
+            <div id="ready-pallets-table" class="table-wrap"></div>
+          </div>
+
+          <!-- View 2: Sổ phiếu xuất kho nhà máy (Lịch sử PXN) -->
+          <div id="view-dispatch-notes" class="issuance-view" hidden>
+            <div class="view-header">
+              <p class="muted">Lưu vết và quản lý toàn bộ phiếu xuất xưởng (PXN) đã lập tại nhà máy, tra cứu tình trạng tiếp nhận và in phiếu xuất kho kiêm vận chuyển nội bộ.</p>
+              <button type="button" id="btn-refresh-dispatches" class="btn-sm">Làm mới sổ xuất</button>
+            </div>
+            <div id="dispatch-notes-table" class="table-wrap"></div>
+          </div>
+
+          <!-- View 3: Danh sách mẻ sản xuất (Batch list) -->
+          <div id="view-batch-list" class="issuance-view" hidden>
+            <p class="muted">Danh sách 100 mẻ sản xuất gần nhất tại nhà máy. Bấm &quot;Xem chi tiết&quot; để tra cứu mapping carton và serial sản phẩm.</p>
+            <div id="batches" class="table-wrap"></div>
+          </div>
         </section>
         <dialog id="batch-dialog" aria-labelledby="batch-title">
           <div class="dialog-header">
@@ -195,6 +243,23 @@
           <p id="serial-scope" class="muted"></p>
           <div id="serial-results"></div>
           <div id="serial-pager" class="mapping-pager"></div>
+        </dialog>
+        <dialog
+          id="dispatch-dialog"
+          class="dispatch-dialog"
+          aria-labelledby="dispatch-title"
+        >
+          <div class="dialog-header">
+            <div>
+              <span class="eyebrow">PHIẾU XUẤT XƯỞNG NHÀ MÁY</span>
+              <h2 id="dispatch-title">Chi tiết phiếu xuất</h2>
+            </div>
+            <div class="row-actions">
+              <a id="dispatch-print-btn" class="button primary" target="_blank" rel="noopener">In Phiếu Xuất (A4)</a>
+              <button type="button" id="close-dispatch">Đóng</button>
+            </div>
+          </div>
+          <div id="dispatch-detail-content"></div>
         </dialog>
         <section id="traceability" class="panel workflow-section">
           <span class="eyebrow">03 · TRUY XUẤT NGUỒN GỐC</span>

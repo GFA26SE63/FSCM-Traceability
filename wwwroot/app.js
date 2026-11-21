@@ -1,46 +1,238 @@
 const $ = id => document.getElementById(id);
 const page = ({ '/': 'production', '/production': 'production', '/issuance': 'issuance', '/traceability': 'traceability' })[location.pathname] || 'production';
 let batches = [], warehouses = [], selected = '', busy = false, operation = null, batchView = null;
+let readyPallets = [], selectedReadyPalletIds = new Set(), dispatchNotes = [];
+let currentIssuanceSubtab = 'ready-pallets';
 let mapping = { level: 'cartons', pallet: '', carton: '', search: '', page: 1, pageSize: 50 };
 const status = { Packed: 'Đã đóng pallet', Dispatched: 'Đã xuất nhà máy', Received: 'Đã có kết quả nhận' };
+const dispatchStatusMap = {
+  Dispatched: { text: 'Đang vận chuyển', badge: 'badge-warning' },
+  PartiallyReceived: { text: 'Đã nhận một phần', badge: 'badge-info' },
+  Received: { text: 'Đã nhận kho', badge: 'badge-success' }
+};
+
 function el(tag, text, className) { const e = document.createElement(tag); if (text != null) e.textContent = text; if (className) e.className = className; return e; }
-function notice(text, error = false) { for (const id of ['notice', 'batch-notice']) { $(id).textContent = text; $(id).className = error ? 'error' : ''; } }
+function notice(text, error = false) { for (const id of ['notice', 'batch-notice']) { const n = $(id); if (n) { n.textContent = text; n.className = error ? 'error' : ''; } } }
 function showPage() {
   for (const [id, owner] of Object.entries({ 'production-overview': 'production', production: 'production', issuance: 'issuance', traceability: 'traceability' }))
-    $(id).hidden = owner !== page;
+    if ($(id)) $(id).hidden = owner !== page;
   for (const [id, owner] of Object.entries({ 'nav-production': 'production', 'nav-issuance': 'issuance', 'nav-traceability': 'traceability' }))
-    $(id).setAttribute('aria-current', owner === page ? 'page' : 'false');
+    if ($(id)) $(id).setAttribute('aria-current', owner === page ? 'page' : 'false');
+  if (page === 'issuance') setIssuanceSubtab(currentIssuanceSubtab);
 }
 function signedIn(user) {
-  $('session-loading').hidden = true; $('login').hidden = true; $('workspace').hidden = false; $('main-nav').hidden = false; showPage(); $('session').replaceChildren(el('span', user.fullName || user.name || 'Admin'));
-  const logout = el('button', 'Đăng xuất'); logout.onclick = () => run(async () => { await api('/api/session/logout', 'POST'); location.reload(); }); $('session').append(logout);
+  if ($('session-loading')) $('session-loading').hidden = true;
+  if ($('login')) $('login').hidden = true;
+  if ($('workspace')) $('workspace').hidden = false;
+  if ($('main-nav')) $('main-nav').hidden = false;
+  showPage();
+  if ($('session')) {
+    $('session').replaceChildren(el('span', user.fullName || user.name || 'Admin'));
+    const logout = el('button', 'Đăng xuất'); logout.onclick = () => run(async () => { await api('/api/session/logout', 'POST'); location.reload(); }); $('session').append(logout);
+  }
 }
 async function api(path, method = 'GET', body, key) {
   const response = await fetch(path, { method, credentials: 'same-origin', headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'Traceability', ...(key ? { 'Idempotency-Key': key } : {}) }, body: body == null ? undefined : JSON.stringify(body) });
-  if (response.status === 401) { $('session-loading').hidden = true; $('workspace').hidden = true; $('login').hidden = false; $('main-nav').hidden = true; $('session').replaceChildren(); throw new Error('Vui lòng đăng nhập bằng tài khoản Admin FSCM.'); }
+  if (response.status === 401) {
+    if ($('session-loading')) $('session-loading').hidden = true;
+    if ($('workspace')) $('workspace').hidden = true;
+    if ($('login')) $('login').hidden = false;
+    if ($('main-nav')) $('main-nav').hidden = true;
+    if ($('session')) $('session').replaceChildren();
+    throw new Error('Vui lòng đăng nhập bằng tài khoản Admin FSCM.');
+  }
   if (!response.ok) { let message = 'Yêu cầu thất bại (' + response.status + ').'; try { const data = await response.json(); message = data.message || data.detail || message; } catch {} throw new Error(message); }
   return response.status === 204 ? null : response.json();
 }
-async function run(action) { if (busy) return; busy = true; document.body.classList.add('busy'); notice('Đang xử lý…'); try { await action(); if ($('notice').textContent === 'Đang xử lý…') notice(''); } catch (e) { notice(e.message, true); } finally { busy = false; document.body.classList.remove('busy'); } }
+async function run(action) { if (busy) return; busy = true; document.body.classList.add('busy'); notice('Đang xử lý…'); try { await action(); if ($('notice') && $('notice').textContent === 'Đang xử lý…') notice(''); } catch (e) { notice(e.message, true); } finally { busy = false; document.body.classList.remove('busy'); } }
 function table(headers, rows) {
   const wrap = el('div', null, 'table-wrap'), t = el('table'), head = el('tr'); headers.forEach(h => head.append(el('th', h))); const thead = el('thead'); thead.append(head); t.append(thead);
   const body = el('tbody'); rows.forEach(cells => { const tr = el('tr'); cells.forEach(value => { const td = el('td'); td.append(value instanceof Node ? value : el('span', value ?? '—')); tr.append(td); }); body.append(tr); });
   t.append(body); wrap.append(t); if (!rows.length) wrap.append(el('div', 'Chưa có dữ liệu.', 'empty')); return wrap;
 }
-function button(text, action) { const b = el('button', text); b.type = 'button'; b.onclick = () => run(action); return b; }
-function link(text, href) { const a = el('a', text, 'button'); a.href = href; a.target = '_blank'; a.rel = 'noopener'; return a; }
+function button(text, action, className) { const b = el('button', text, className); b.type = 'button'; b.onclick = () => run(action); return b; }
+function link(text, href, target = '_blank') { const a = el('a', text, 'button'); a.href = href; a.target = target; a.rel = 'noopener'; return a; }
 function code(value) { return el('code', value); }
 function date(value) { if (!value) return '—'; const parts = value.slice(0, 10).split('-'); return parts.reverse().join('/'); }
+function datetime(value) {
+  if (!value) return '—';
+  try {
+    const d = new Date(value);
+    return d.toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh', hour12: false });
+  } catch { return String(value).slice(0, 16).replace('T', ' '); }
+}
 function detail(label, value) { const p = el('p', label); p.append(el('b', value)); return p; }
+function badge(statusKey) {
+  const meta = dispatchStatusMap[statusKey] || { text: statusKey || '—', badge: 'badge-info' };
+  return el('span', meta.text, 'badge ' + meta.badge);
+}
 function batchLabelUrl(id, cartons = false) { return '/api/batches/' + encodeURIComponent(id) + '/labels' + (cartons ? '?cartons=true' : ''); }
 function batchActions(id) { const actions = el('div', null, 'row-actions'); actions.append(button('Xem chi tiết', () => openBatch(id)), link('In QR mẻ', batchLabelUrl(id))); return actions; }
 function warehouseName(id) { return warehouses.find(w => w.id === id)?.name || 'Chưa phát hành'; }
+
+function setIssuanceSubtab(tabName) {
+  currentIssuanceSubtab = tabName;
+  if ($('tab-ready-pallets')) $('tab-ready-pallets').className = 'subtab-btn' + (tabName === 'ready-pallets' ? ' active' : '');
+  if ($('tab-dispatch-notes')) $('tab-dispatch-notes').className = 'subtab-btn' + (tabName === 'dispatch-notes' ? ' active' : '');
+  if ($('tab-batch-list')) $('tab-batch-list').className = 'subtab-btn' + (tabName === 'batch-list' ? ' active' : '');
+
+  if ($('view-ready-pallets')) $('view-ready-pallets').hidden = tabName !== 'ready-pallets';
+  if ($('view-dispatch-notes')) $('view-dispatch-notes').hidden = tabName !== 'dispatch-notes';
+  if ($('view-batch-list')) $('view-batch-list').hidden = tabName !== 'batch-list';
+
+  if (tabName === 'ready-pallets') loadReadyPallets();
+  else if (tabName === 'dispatch-notes') loadDispatchNotes();
+}
+
 async function refresh() {
   batches = await api('/api/batches');
-  $('stats').replaceChildren(...[['Mẻ sản xuất gần đây', batches.length], ['Pallet đã đóng', batches.reduce((n, b) => n + b.pallets.length, 0)], ['Pallet chờ kho nhận', batches.reduce((n, b) => n + b.pallets.filter(p => p.status === 'Dispatched').length, 0)]].map(([label, value]) => { const d = el('div', label, 'stat'); d.append(el('strong', value)); return d; }));
-  $('batches').replaceChildren(table(['Batch', 'SKU / line', 'NSX / HSD', 'Pallet / carton / sản phẩm', 'Thao tác'], batches.map(b => [code(b.batch.code), b.sku + ' · ' + b.batch.productionLine, date(b.batch.productionDate) + ' / ' + date(b.batch.expirationDate), `${b.pallets.length} / ${b.cartonCount} / ${b.unitCount}`, batchActions(b.batch.id)])));
-  if (selected && $('batch-dialog').open) await openBatch(selected, false);
+  if ($('stats')) {
+    $('stats').replaceChildren(...[['Mẻ sản xuất gần đây', batches.length], ['Pallet đã đóng', batches.reduce((n, b) => n + b.pallets.length, 0)], ['Pallet chờ kho nhận', batches.reduce((n, b) => n + b.pallets.filter(p => p.status === 'Dispatched').length, 0)]].map(([label, value]) => { const d = el('div', label, 'stat'); d.append(el('strong', value)); return d; }));
+  }
+  if ($('batches')) {
+    $('batches').replaceChildren(table(['Batch', 'SKU / line', 'NSX / HSD', 'Pallet / carton / sản phẩm', 'Thao tác'], batches.map(b => [code(b.batch.code), b.sku + ' · ' + b.batch.productionLine, date(b.batch.productionDate) + ' / ' + date(b.batch.expirationDate), `${b.pallets.length} / ${b.cartonCount} / ${b.unitCount}`, batchActions(b.batch.id)])));
+  }
+  if (selected && $('batch-dialog') && $('batch-dialog').open) await openBatch(selected, false);
+  try { await loadReadyPallets(); } catch {}
+  try { await loadDispatchNotes(); } catch {}
 }
+
+async function loadReadyPallets() {
+  try {
+    readyPallets = await api('/api/pallets/ready') || [];
+    if ($('ready-sku-filter')) {
+      const current = $('ready-sku-filter').value;
+      const skus = [...new Set(readyPallets.map(p => p.sku))].sort();
+      $('ready-sku-filter').replaceChildren(new Option('Tất cả SKU (' + skus.length + ')', ''));
+      skus.forEach(s => $('ready-sku-filter').append(new Option(s, s)));
+      $('ready-sku-filter').value = current;
+    }
+    renderReadyPallets();
+  } catch {}
+}
+
+function renderReadyPallets() {
+  if (!$('ready-pallets-table')) return;
+  const search = $('ready-search') ? $('ready-search').value.trim().toUpperCase() : '';
+  const skuFilter = $('ready-sku-filter') ? $('ready-sku-filter').value : '';
+  const lineFilter = $('ready-line-filter') ? $('ready-line-filter').value : '';
+
+  const filtered = readyPallets.filter(p => {
+    if (skuFilter && p.sku !== skuFilter) return false;
+    if (lineFilter && p.productionLine !== lineFilter) return false;
+    if (search && !p.palletCode.toUpperCase().includes(search) && !p.batchCode.toUpperCase().includes(search) && !p.sku.toUpperCase().includes(search) && !p.productName.toUpperCase().includes(search)) return false;
+    return true;
+  });
+
+  const selectedInFiltered = filtered.filter(p => selectedReadyPalletIds.has(p.palletId));
+  const totalCartons = selectedInFiltered.reduce((sum, p) => sum + p.cartonCount, 0);
+  const totalUnits = selectedInFiltered.reduce((sum, p) => sum + p.unitCount, 0);
+
+  if ($('ready-selected-summary')) {
+    $('ready-selected-summary').textContent = `Đã chọn: ${selectedReadyPalletIds.size} pallet (${totalCartons.toLocaleString('vi-VN')} thùng · ${totalUnits.toLocaleString('vi-VN')} SP)`;
+  }
+  if ($('ready-pallet-count-label')) {
+    $('ready-pallet-count-label').textContent = `Hiển thị ${filtered.length} / ${readyPallets.length} pallet sẵn sàng xuất`;
+  }
+  if ($('btn-create-dispatch')) {
+    const warehouseChosen = $('ready-destination-warehouse') && $('ready-destination-warehouse').value;
+    $('btn-create-dispatch').disabled = selectedReadyPalletIds.size === 0 || !warehouseChosen;
+  }
+
+  $('ready-pallets-table').replaceChildren(table(['Chọn', 'Mã Pallet', 'Mã Mẻ (BID)', 'SKU · Sản phẩm', 'Line', 'NSX / HSD', 'Thùng', 'Sản phẩm', 'Thao tác'], filtered.map(p => {
+    const chk = el('input'); chk.type = 'checkbox'; chk.className = 'pallet-check';
+    chk.checked = selectedReadyPalletIds.has(p.palletId);
+    chk.onchange = () => {
+      if (chk.checked) selectedReadyPalletIds.add(p.palletId);
+      else selectedReadyPalletIds.delete(p.palletId);
+      renderReadyPallets();
+    };
+    const actions = el('div', null, 'row-actions');
+    actions.append(link('In QR pallet', '/api/pallets/' + encodeURIComponent(p.palletCode) + '/labels'));
+    return [
+      chk,
+      code(p.palletCode),
+      code(p.batchCode),
+      `${p.sku} · ${p.productName}`,
+      p.productionLine,
+      date(p.productionDate) + ' / ' + date(p.expirationDate),
+      String(p.cartonCount),
+      String(p.unitCount),
+      actions
+    ];
+  })));
+}
+
+async function loadDispatchNotes() {
+  if (!$('dispatch-notes-table')) return;
+  try {
+    dispatchNotes = await api('/api/dispatches') || [];
+    renderDispatchNotes();
+  } catch {}
+}
+
+function renderDispatchNotes() {
+  if (!$('dispatch-notes-table')) return;
+  $('dispatch-notes-table').replaceChildren(table(['Mã phiếu xuất', 'Thời gian xuất xưởng', 'Kho tiếp nhận', 'Xe / Tài xế', 'Số lượng', 'Trạng thái', 'Thao tác'], dispatchNotes.map(n => {
+    const actions = el('div', null, 'row-actions');
+    actions.append(
+      button('Xem chi tiết', () => openDispatchNote(n.id), 'btn-sm'),
+      link('In Phiếu (A4)', '/api/dispatches/' + encodeURIComponent(n.id) + '/print')
+    );
+    const transport = [n.vehicleNumber, n.driverName].filter(Boolean).join(' · ') || '—';
+    return [
+      code(n.code),
+      datetime(n.dispatchedAt),
+      n.destinationWarehouseName,
+      transport,
+      `${n.palletCount} pallet · ${n.cartonCount} thùng · ${n.unitCount} SP`,
+      badge(n.status),
+      actions
+    ];
+  })));
+}
+
+async function openDispatchNote(id) {
+  if (!$('dispatch-dialog')) return;
+  $('dispatch-title').textContent = 'Đang tải thông tin phiếu xuất…';
+  $('dispatch-detail-content').replaceChildren();
+  if (!$('dispatch-dialog').open) $('dispatch-dialog').showModal();
+
+  const data = await api('/api/dispatches/' + encodeURIComponent(id));
+  const n = data.note;
+  $('dispatch-title').textContent = n.code;
+  if ($('dispatch-print-btn')) $('dispatch-print-btn').href = '/api/dispatches/' + encodeURIComponent(n.id) + '/print';
+
+  const grid = el('div', null, 'detail-grid');
+  grid.append(
+    detail('Kho nhận hàng', n.destinationWarehouseName),
+    detail('Thời gian xuất', datetime(n.dispatchedAt)),
+    detail('Phương tiện / Tài xế', [n.vehicleNumber, n.driverName].filter(Boolean).join(' · ') || '—'),
+    detail('Tổng số xuất xưởng', `${n.palletCount} pallet · ${n.cartonCount} thùng · ${n.unitCount} sản phẩm`),
+    detail('Trạng thái tiếp nhận', badge(data.status)),
+    detail('Người lập phiếu', n.createdByName || 'Admin')
+  );
+  if (n.note) grid.append(detail('Ghi chú xuất kho', n.note));
+
+  const content = $('dispatch-detail-content');
+  content.replaceChildren(grid, el('h3', 'Danh sách pallet xuất kho trong phiếu'));
+
+  content.append(table(['STT', 'Mã Pallet', 'Mã Mẻ (BID)', 'SKU · Sản phẩm', 'NSX / HSD', 'Thùng', 'SP', 'Trạng thái tại kho'], data.pallets.map((p, idx) => {
+    const pStatusText = p.status === 'Received' ? 'Đã nhận kho' : 'Đang vận chuyển';
+    const pBadgeClass = p.status === 'Received' ? 'badge-success' : 'badge-warning';
+    return [
+      String(idx + 1),
+      code(p.palletCode),
+      code(p.batchCode),
+      `${p.sku} · ${p.productName}`,
+      date(p.productionDate) + ' / ' + date(p.expirationDate),
+      String(p.cartonCount),
+      String(p.unitCount),
+      el('span', pStatusText, 'badge ' + pBadgeClass)
+    ];
+  })));
+}
+
 function saveBatchView() {
   const params = new URLSearchParams({ batch: selected, level: mapping.level, page: String(mapping.page) });
   for (const key of ['pallet', 'carton', 'search']) if (mapping[key]) params.set(key, mapping[key]);
@@ -66,7 +258,6 @@ function renderBatch() {
   const labels = el('div', null, 'row-actions label-actions');
   labels.append(link('In QR mẻ (batch + pallet)', batchLabelUrl(view.batch.id)), link('In QR đầy đủ (kèm carton)', batchLabelUrl(view.batch.id, true)));
   section.replaceChildren(info, labels);
-  // Each packed pallet is ticked in its own row; the warehouse and the submit button sit above the table.
   const packed = view.pallets.some(p => p.pallet.status === 'Packed'), selectedPallets = new Set();
   if (packed) {
     const form = el('form', null, 'scan dispatch-form'), label = el('label', 'Kho nhận'), select = el('select'); select.required = true; select.append(new Option('Chọn kho nhận', ''));
@@ -74,7 +265,7 @@ function renderBatch() {
     form.append(el('button', 'Phát hành pallet đã chọn', 'primary'));
     form.onsubmit = e => { e.preventDefault(); run(async () => {
       if (!selectedPallets.size) throw new Error('Tick chọn ít nhất một pallet cần phát hành.');
-      await api('/api/batches/' + view.batch.id + '/dispatch', 'POST', { destinationWarehouseId: select.value, palletIds: [...selectedPallets] }); await refresh(); notice('Đã phát hành pallet. Thủ kho có thể quét nhận trên phiếu nhập FSCM.'); }); };
+      await api('/api/batches/' + view.batch.id + '/dispatch', 'POST', { destinationWarehouseId: select.value, palletIds: [...selectedPallets] }); await refresh(); notice('Đã phát hành pallet. Đã lưu phiếu xuất xưởng tại nhà máy.'); }); };
     section.append(form);
   }
   section.append(table([...(packed ? ['Chọn'] : []), 'Pallet code', 'Carton', 'Sản phẩm', 'Trạng thái', 'Kho đích', 'QR'], view.pallets.map(row => {
@@ -96,16 +287,19 @@ function renderBatch() {
   if (inspectionRows.length) {
     section.append(el('h3', 'Kết quả kiểm đếm tại kho'), table(['Pallet', 'CID', 'Kết quả', 'Lý do', 'Vị trí cách ly'], inspectionRows));
   }
-  $('mapping-pallet').replaceChildren(new Option('Tất cả pallet', ''));
-  view.pallets.forEach(row => $('mapping-pallet').append(new Option(row.pallet.code, row.pallet.code)));
-  $('mapping-pallet').value = mapping.pallet; $('mapping-search').value = mapping.search;
+  if ($('mapping-pallet')) {
+    $('mapping-pallet').replaceChildren(new Option('Tất cả pallet', ''));
+    view.pallets.forEach(row => $('mapping-pallet').append(new Option(row.pallet.code, row.pallet.code)));
+    $('mapping-pallet').value = mapping.pallet; $('mapping-search').value = mapping.search;
+  }
 }
 async function chooseMapping(pallet = mapping.pallet) {
   mapping = { ...mapping, level: 'cartons', pallet, carton: '', search: '', page: 1 };
-  $('mapping-search').value = ''; $('mapping-pallet').value = pallet;
-  await loadMapping(); $('mapping-results').scrollIntoView({ block: 'nearest' });
+  if ($('mapping-search')) $('mapping-search').value = '';
+  if ($('mapping-pallet')) $('mapping-pallet').value = pallet;
+  await loadMapping();
+  if ($('mapping-results')) $('mapping-results').scrollIntoView({ block: 'nearest' });
 }
-// Serials of one carton in their own popup, 10 per page, read from the same mapping API.
 const SERIAL_PAGE_SIZE = 10;
 let serialView = null;
 async function openSerials(pallet, carton, page = 1) {
@@ -148,34 +342,125 @@ async function restoreBatchView() {
   const params = new URLSearchParams(location.hash.slice(1)), id = params.get('batch');
   if (!id || !/^[0-9a-f-]{36}$/i.test(id)) return;
   selected = id;
-  // Older links may carry level=units / carton=...; the single carton+serial table ignores them.
   mapping = { ...mapping, level: 'cartons', pallet: params.get('pallet') || '', carton: '', search: params.get('search') || '', page: Math.max(1, Math.min(1000000, Number(params.get('page')) || 1)) };
   await openBatch(id, false);
 }
-$('close-batch').onclick = () => $('batch-dialog').close();
-$('close-serial').onclick = () => $('serial-dialog').close();
-$('serial-dialog').addEventListener('close', () => { serialView = null; });
-$('batch-dialog').addEventListener('close', () => { selected = ''; batchView = null; history.replaceState(null, '', location.pathname + location.search); });
-$('mapping-filter').onsubmit = e => { e.preventDefault(); run(async () => { mapping = { ...mapping, pallet: $('mapping-pallet').value, carton: '', search: $('mapping-search').value.trim(), page: 1 }; await loadMapping(); }); };
-$('mapping-reset').onclick = () => run(() => chooseMapping(''));
+
+if ($('close-batch')) $('close-batch').onclick = () => $('batch-dialog').close();
+if ($('close-serial')) $('close-serial').onclick = () => $('serial-dialog').close();
+if ($('close-dispatch')) $('close-dispatch').onclick = () => $('dispatch-dialog').close();
+if ($('serial-dialog')) $('serial-dialog').addEventListener('close', () => { serialView = null; });
+if ($('batch-dialog')) $('batch-dialog').addEventListener('close', () => { selected = ''; batchView = null; history.replaceState(null, '', location.pathname + location.search); });
+if ($('mapping-filter')) $('mapping-filter').onsubmit = e => { e.preventDefault(); run(async () => { mapping = { ...mapping, pallet: $('mapping-pallet').value, carton: '', search: $('mapping-search').value.trim(), page: 1 }; await loadMapping(); }); };
+if ($('mapping-reset')) $('mapping-reset').onclick = () => run(() => chooseMapping(''));
+
+if ($('tab-ready-pallets')) $('tab-ready-pallets').onclick = () => setIssuanceSubtab('ready-pallets');
+if ($('tab-dispatch-notes')) $('tab-dispatch-notes').onclick = () => setIssuanceSubtab('dispatch-notes');
+if ($('tab-batch-list')) $('tab-batch-list').onclick = () => setIssuanceSubtab('batch-list');
+
+if ($('ready-search')) $('ready-search').oninput = () => renderReadyPallets();
+if ($('ready-sku-filter')) $('ready-sku-filter').onchange = () => renderReadyPallets();
+if ($('ready-line-filter')) $('ready-line-filter').onchange = () => renderReadyPallets();
+if ($('ready-destination-warehouse')) $('ready-destination-warehouse').onchange = () => renderReadyPallets();
+
+if ($('btn-select-all-pallets')) $('btn-select-all-pallets').onclick = () => {
+  const search = $('ready-search') ? $('ready-search').value.trim().toUpperCase() : '';
+  const skuFilter = $('ready-sku-filter') ? $('ready-sku-filter').value : '';
+  const lineFilter = $('ready-line-filter') ? $('ready-line-filter').value : '';
+  readyPallets.filter(p => {
+    if (skuFilter && p.sku !== skuFilter) return false;
+    if (lineFilter && p.productionLine !== lineFilter) return false;
+    if (search && !p.palletCode.toUpperCase().includes(search) && !p.batchCode.toUpperCase().includes(search) && !p.sku.toUpperCase().includes(search)) return false;
+    return true;
+  }).forEach(p => selectedReadyPalletIds.add(p.palletId));
+  renderReadyPallets();
+};
+
+if ($('btn-deselect-all-pallets')) $('btn-deselect-all-pallets').onclick = () => {
+  selectedReadyPalletIds.clear();
+  renderReadyPallets();
+};
+
+if ($('btn-refresh-dispatches')) $('btn-refresh-dispatches').onclick = () => run(async () => {
+  await loadDispatchNotes();
+  notice('Đã cập nhật sổ phiếu xuất kho nhà máy.');
+});
+
+if ($('btn-create-dispatch')) $('btn-create-dispatch').onclick = () => run(async () => {
+  const destinationWarehouseId = $('ready-destination-warehouse').value;
+  if (!destinationWarehouseId) throw new Error('Vui lòng chọn kho đích tiếp nhận hàng.');
+  if (selectedReadyPalletIds.size === 0) throw new Error('Vui lòng chọn ít nhất một pallet để xuất kho.');
+
+  const vehicleNumber = $('ready-vehicle-number') ? $('ready-vehicle-number').value.trim() : '';
+  const driverName = $('ready-driver-name') ? $('ready-driver-name').value.trim() : '';
+  const note = $('ready-dispatch-note') ? $('ready-dispatch-note').value.trim() : '';
+
+  const result = await api('/api/dispatches', 'POST', {
+    destinationWarehouseId,
+    palletIds: [...selectedReadyPalletIds],
+    vehicleNumber,
+    driverName,
+    note
+  });
+
+  selectedReadyPalletIds.clear();
+  if ($('ready-vehicle-number')) $('ready-vehicle-number').value = '';
+  if ($('ready-driver-name')) $('ready-driver-name').value = '';
+  if ($('ready-dispatch-note')) $('ready-dispatch-note').value = '';
+
+  await refresh();
+  notice(`Đã tạo phiếu xuất kho ${result.code} và phát hành ${result.palletCount} pallet thành công!`);
+  await openDispatchNote(result.id);
+});
+
 async function loadCatalog() {
-  const products = await api('/api/catalog/products'); warehouses = await api('/api/catalog/warehouses');
-  $('products').replaceChildren(new Option('Chọn SKU đang phát hành', '')); products.filter(p => p.status === 'Published').forEach(p => $('products').append(new Option(p.sku + ' · ' + p.name, p.id)));
+  const products = await api('/api/catalog/products');
+  warehouses = await api('/api/catalog/warehouses');
+  if ($('products')) {
+    $('products').replaceChildren(new Option('Chọn SKU đang phát hành', ''));
+    products.filter(p => p.status === 'Published').forEach(p => $('products').append(new Option(p.sku + ' · ' + p.name, p.id)));
+  }
+  if ($('ready-destination-warehouse')) {
+    const cur = $('ready-destination-warehouse').value;
+    $('ready-destination-warehouse').replaceChildren(new Option('-- Chọn kho đích tiếp nhận --', ''));
+    warehouses.filter(w => w.isActive).forEach(w => $('ready-destination-warehouse').append(new Option(w.code + ' · ' + w.name, w.id)));
+    $('ready-destination-warehouse').value = cur;
+  }
 }
-function total() { const data = new FormData($('production-form')); const cartons = Number(data.get('palletCount')) * Number(data.get('cartonsPerPallet')); $('production-total').textContent = `${cartons} carton · ${cartons * Number(data.get('unitsPerCarton'))} sản phẩm (tối đa 50.000/mẻ)`; }
-$('production-date').value = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Ho_Chi_Minh' }); $('production-form').oninput = total; total();
-$('login-form').onsubmit = e => { e.preventDefault(); run(async () => { const data = Object.fromEntries(new FormData(e.target)); const user = await api('/api/session/login', 'POST', data); e.target.reset(); signedIn(user); await loadCatalog(); await refresh(); await restoreBatchView(); notice(''); }); };
-$('production-form').onsubmit = e => { e.preventDefault(); run(async () => {
+
+function total() {
+  if (!$('production-form') || !$('production-total')) return;
+  const data = new FormData($('production-form'));
+  const cartons = Number(data.get('palletCount')) * Number(data.get('cartonsPerPallet'));
+  $('production-total').textContent = `${cartons} carton · ${cartons * Number(data.get('unitsPerCarton'))} sản phẩm (tối đa 50.000/mẻ)`;
+}
+if ($('production-date')) $('production-date').value = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Ho_Chi_Minh' });
+if ($('production-form')) { $('production-form').oninput = total; total(); }
+if ($('login-form')) $('login-form').onsubmit = e => { e.preventDefault(); run(async () => { const data = Object.fromEntries(new FormData(e.target)); const user = await api('/api/session/login', 'POST', data); e.target.reset(); signedIn(user); await loadCatalog(); await refresh(); await restoreBatchView(); notice(''); }); };
+if ($('production-form')) $('production-form').onsubmit = e => { e.preventDefault(); run(async () => {
   const data = Object.fromEntries(new FormData(e.target)); ['palletCount', 'cartonsPerPallet', 'unitsPerCarton'].forEach(k => data[k] = Number(data[k]));
   const fingerprint = JSON.stringify(data); if (operation?.fingerprint !== fingerprint) operation = { fingerprint, key: crypto.randomUUID() };
   const result = await api('/api/batches/simulate', 'POST', data, operation.key); operation = null; await refresh(); await openBatch(result.id); notice('Đã cấp batch, serial, carton và pallet tại nhà máy. Bấm "In QR mẻ" để in nhãn QR. Hàng chưa được nhập tồn FSCM.');
 }); };
-$('refresh').onclick = () => run(async () => { await loadCatalog(); await refresh(); notice('Đã làm mới dữ liệu.'); });
-$('trace-form').onsubmit = e => { e.preventDefault(); run(async () => {
+if ($('refresh')) $('refresh').onclick = () => run(async () => { await loadCatalog(); await refresh(); notice('Đã làm mới dữ liệu.'); });
+if ($('trace-form')) $('trace-form').onsubmit = e => { e.preventDefault(); run(async () => {
   const value = new FormData(e.target).get('code').trim(), t = await api('/api/trace?code=' + encodeURIComponent(value)), section = $('trace-result');
   const info = el('div', null, 'detail-grid'); info.append(detail('Batch', t.batch.code), detail('SKU / line', t.sku + ' · ' + t.batch.productionLine), detail('NSX / HSD', date(t.batch.productionDate) + ' / ' + date(t.batch.expirationDate)), detail('Pallet gốc', t.pallet?.code || 'Tra theo batch'), detail('Carton', t.carton?.code || '—'), detail('Serial', t.unit?.code || '—')); section.replaceChildren(info, button('Mở chi tiết mẻ và mapping', () => openBatch(t.batch.id)));
   section.append(el('p', t.pallet ? 'Trạng thái nhà máy: ' + status[t.pallet.status] + '. Vị trí tồn hiện tại và lịch sử chứng từ xem tại FSCM.' : t.cartonCodes.length + ' carton thuộc phạm vi truy xuất.'));
   section.append(table(['Carton trong phạm vi truy xuất'], t.cartonCodes.map(c => [code(c)])));
   if (t.units.length) section.append(table(['STT', 'Serial sản phẩm trong carton'], t.units.map(u => [u.sequence, code(u.code)]))); notice('');
 }); };
-(async () => { try { const user = await api('/api/session'); signedIn(user); await loadCatalog(); await refresh(); await restoreBatchView(); notice(''); } catch (e) { if (!$('login').hidden) notice(''); else notice(e.message, true); } })();
+
+(async () => {
+  try {
+    const user = await api('/api/session');
+    signedIn(user);
+    await loadCatalog();
+    await refresh();
+    await restoreBatchView();
+    notice('');
+  } catch (e) {
+    if ($('login') && !$('login').hidden) notice('');
+    else notice(e.message, true);
+  }
+})();

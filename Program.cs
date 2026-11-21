@@ -49,6 +49,11 @@ public sealed class Program
             await scope.ServiceProvider.GetRequiredService<FactoryDbContext>().Database.MigrateAsync();
             Console.WriteLine("TRACEABILITY MIGRATION OK"); return;
         }
+        await using (var scope = app.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<FactoryDbContext>();
+            await db.Database.MigrateAsync();
+        }
         app.Use(async (context, next) => {
             try
             {
@@ -86,6 +91,13 @@ public sealed class Program
             new { id = await service.SimulateAsync(request, c.Request.Headers["Idempotency-Key"].ToString(), Guid.Parse(c.User.FindFirstValue(ClaimTypes.NameIdentifier)!), await Token(c), ct) });
         admin.MapPost("/batches/{id:guid}/dispatch", async (Guid id, DispatchRequest request, HttpContext c, ProductionService service, CancellationToken ct) =>
             new { id = await service.DispatchAsync(id, request.DestinationWarehouseId, await Token(c), ct, request.PalletIds) });
+        admin.MapGet("/pallets/ready", (ProductionService service, CancellationToken ct) => service.ReadyPalletsAsync(ct));
+        admin.MapPost("/dispatches", async (CreateDispatchNoteRequest request, HttpContext c, ProductionService service, CancellationToken ct) =>
+            await service.CreateDispatchNoteAsync(request, Guid.Parse(c.User.FindFirstValue(ClaimTypes.NameIdentifier)!), c.User.Identity?.Name ?? "Admin", await Token(c), ct));
+        admin.MapGet("/dispatches", (ProductionService service, CancellationToken ct) => service.ListDispatchNotesAsync(ct));
+        admin.MapGet("/dispatches/{id:guid}", (Guid id, ProductionService service, CancellationToken ct) => service.DispatchNoteDetailAsync(id, ct));
+        admin.MapGet("/dispatches/{id:guid}/print", async (Guid id, ProductionService service, CancellationToken ct) =>
+            Results.Content(FactoryLabels.DispatchNote(await service.DispatchNoteDetailAsync(id, ct)), "text/html; charset=utf-8"));
         // Whole-batch QR sheet (batch + pallets, optionally cartons). Admin UI only; not part of the FSCM integration API.
         admin.MapGet("/batches/{id:guid}/labels", async (Guid id, ProductionService service, CancellationToken ct, bool cartons = false) =>
             Results.Content(FactoryLabels.Batch(await service.BatchLabelsAsync(id, cartons, ct)), "text/html; charset=utf-8"));

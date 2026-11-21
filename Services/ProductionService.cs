@@ -14,6 +14,7 @@ namespace Fscm.Traceability.Services;
 public sealed class ProductionService(FactoryDbContext source, IFscmGateway fscm, TimeProvider clock)
 {
     public static string BatchCode(string factory, DateOnly date, string line, int sequence) => $"BID-{factory}-{date:yyyyMMdd}-{line}-{sequence:D4}";
+    public static string DispatchNoteCode(string factory, DateOnly date, int sequence) => $"PXN-{factory}-{date:yyyyMMdd}-{sequence:D4}";
     public static string StockCode(string warehouse, string sku, string batch, DateOnly received, DateOnly expiry) =>
         $"{warehouse}-{sku}-{batch}-{received:yyyyMMdd}-{expiry:yyyyMMdd}";
     public static DateOnly VietnamDate(DateTimeOffset instant) => DateOnly.FromDateTime(instant.ToOffset(TimeSpan.FromHours(7)).DateTime);
@@ -161,8 +162,230 @@ public sealed class ProductionService(FactoryDbContext source, IFscmGateway fscm
         }, ct);
     }
 
+    public async Task<ReadyPalletView[]> ReadyPalletsAsync(CancellationToken ct)
+    {
+        var pallets = await (from p in source.Set<FactoryPallet>().AsNoTracking()
+                             join b in source.Set<FactoryProductionBatch>().AsNoTracking() on p.ProductionBatchId equals b.Id
+                             where p.Status == "Packed"
+                             orderby b.ProductionDate descending, b.DailySequence descending, p.Code
+                             select new
+                             {
+                                 Pallet = p,
+                                 Batch = b
+                             }).Take(200).ToArrayAsync(ct);
+
+        if (pallets.Length == 0) return [];
+        var palletIds = pallets.Select(x => x.Pallet.Id).ToArray();
+        var cartonCounts = await source.Set<FactoryCarton>().Where(c => palletIds.Contains(c.PalletId)).GroupBy(c => c.PalletId)
+            .Select(g => new { Id = g.Key, Count = g.Count() }).ToDictionaryAsync(x => x.Id, x => x.Count, ct);
+
+        return pallets.Select(x =>
+        {
+            var cCount = cartonCounts.GetValueOrDefault(x.Pallet.Id);
+            return new ReadyPalletView(
+                x.Pallet.Id,
+                x.Pallet.Code,
+                x.Batch.Id,
+                x.Batch.Code,
+                x.Batch.Sku,
+                x.Batch.ProductName,
+                x.Batch.ProductionLine,
+                x.Batch.ProductionDate,
+                x.Batch.ExpirationDate,
+                cCount,
+                cCount * x.Batch.UnitsPerCarton
+            );
+        }).ToArray();
+    }
+
+    public Task<FactoryDispatchNoteSummary> CreateDispatchNoteAsync(CreateDispatchNoteRequest request, Guid actorId, string actorName, string accessToken, CancellationToken ct) => AtomicResult(async () =>
+    {
+        if (request.PalletIds == null || request.PalletIds.Length == 0)
+            throw FactoryException.Validation("Chọn ít nhất một pallet để lập phiếu xuất kho.");
+        if (request.PalletIds.Distinct().Count() != request.PalletIds.Length)
+            throw FactoryException.Validation("Danh sách pallet chọn không được trùng lặp.");
+
+        var warehouse = await fscm.WarehouseAsync(request.DestinationWarehouseId, accessToken, ct);
+        if (!warehouse.IsActive)
+            throw FactoryException.Validation("Kho nhận hàng không hoạt động hoặc không tồn tại.");
+
+        var pallets = await source.Set<FactoryPallet>().Where(x => request.PalletIds.Contains(x.Id)).ToArrayAsync(ct);
+        if (pallets.Length != request.PalletIds.Length)
+            throw FactoryException.NotFound("Một số pallet không tìm thấy trong hệ thống.");
+
+        if (pallets.Any(x => x.Status != "Packed"))
+            throw FactoryException.Conflict("Chỉ có thể xuất các pallet ở trạng thái 'Đã đóng pallet' (Packed). Có pallet đã phát hành.");
+
+        var batchIds = pallets.Select(p => p.ProductionBatchId).Distinct().ToArray();
+        var batches = await source.Set<FactoryProductionBatch>().AsNoTracking().Where(b => batchIds.Contains(b.Id)).ToDictionaryAsync(b => b.Id, ct);
+
+        var palletIds = pallets.Select(p => p.Id).ToArray();
+        var cartonCounts = await source.Set<FactoryCarton>().Where(c => palletIds.Contains(c.PalletId)).GroupBy(c => c.PalletId)
+            .Select(g => new { Id = g.Key, Count = g.Count() }).ToDictionaryAsync(x => x.Id, x => x.Count, ct);
+
+        var totalCartons = 0;
+        var totalUnits = 0;
+        foreach (var p in pallets)
+        {
+            var b = batches[p.ProductionBatchId];
+            var cCount = cartonCounts.GetValueOrDefault(p.Id);
+            totalCartons += cCount;
+            totalUnits += cCount * b.UnitsPerCarton;
+        }
+
+        var factoryCode = batches.Values.First().FactoryCode;
+        var today = VietnamDate(clock.GetUtcNow());
+
+        var prefix = $"PXN-{factoryCode}-{today:yyyyMMdd}-";
+        var maxExisting = await source.Set<FactoryDispatchNote>()
+            .Where(d => d.FactoryCode == factoryCode && d.Code.StartsWith(prefix))
+            .Select(d => d.Code)
+            .ToArrayAsync(ct);
+
+        var nextSeq = 1;
+        foreach (var code in maxExisting)
+        {
+            if (code.Length > prefix.Length && int.TryParse(code[prefix.Length..], out var s) && s >= nextSeq)
+                nextSeq = s + 1;
+        }
+
+        var noteCode = DispatchNoteCode(factoryCode, today, nextSeq);
+        var now = clock.GetUtcNow();
+        var palletCodes = pallets.OrderBy(p => p.Code).Select(p => p.Code).ToArray();
+
+        var dispatchNote = new FactoryDispatchNote
+        {
+            Id = Guid.NewGuid(),
+            Code = noteCode,
+            FactoryCode = factoryCode,
+            DestinationWarehouseId = request.DestinationWarehouseId,
+            DestinationWarehouseName = warehouse.Name,
+            VehicleNumber = string.IsNullOrWhiteSpace(request.VehicleNumber) ? null : request.VehicleNumber.Trim(),
+            DriverName = string.IsNullOrWhiteSpace(request.DriverName) ? null : request.DriverName.Trim(),
+            Note = string.IsNullOrWhiteSpace(request.Note) ? null : request.Note.Trim(),
+            PalletCount = pallets.Length,
+            CartonCount = totalCartons,
+            UnitCount = totalUnits,
+            DispatchedAt = now,
+            CreatedByUserId = actorId,
+            CreatedByName = actorName,
+            PalletCodesJson = JsonSerializer.Serialize(palletCodes)
+        };
+        source.Add(dispatchNote);
+
+        foreach (var p in pallets)
+        {
+            p.Status = "Dispatched";
+            p.DestinationWarehouseId = request.DestinationWarehouseId;
+            p.DispatchedAt = now;
+            p.DispatchNoteId = dispatchNote.Id;
+            p.DispatchCode = dispatchNote.Code;
+            p.Version++;
+        }
+
+        await source.SaveChangesAsync(ct);
+
+        return new FactoryDispatchNoteSummary(
+            dispatchNote.Id,
+            dispatchNote.Code,
+            dispatchNote.FactoryCode,
+            dispatchNote.DestinationWarehouseId,
+            dispatchNote.DestinationWarehouseName,
+            dispatchNote.VehicleNumber,
+            dispatchNote.DriverName,
+            dispatchNote.Note,
+            dispatchNote.PalletCount,
+            dispatchNote.CartonCount,
+            dispatchNote.UnitCount,
+            dispatchNote.DispatchedAt,
+            dispatchNote.CreatedByName,
+            "Dispatched",
+            palletCodes
+        );
+    }, ct);
+
+    public async Task<FactoryDispatchNoteSummary[]> ListDispatchNotesAsync(CancellationToken ct)
+    {
+        var notes = await source.Set<FactoryDispatchNote>().AsNoTracking()
+            .OrderByDescending(x => x.DispatchedAt)
+            .Take(100)
+            .ToArrayAsync(ct);
+
+        if (notes.Length == 0) return [];
+        var noteIds = notes.Select(n => n.Id).ToArray();
+
+        var palletStatuses = await source.Set<FactoryPallet>().AsNoTracking()
+            .Where(p => p.DispatchNoteId.HasValue && noteIds.Contains(p.DispatchNoteId.Value))
+            .Select(p => new { NoteId = p.DispatchNoteId!.Value, p.Status })
+            .ToArrayAsync(ct);
+
+        var statusesByNote = palletStatuses.GroupBy(x => x.NoteId)
+            .ToDictionary(g => g.Key, g => g.Select(x => x.Status).ToArray());
+
+        return notes.Select(n =>
+        {
+            var pStatuses = statusesByNote.GetValueOrDefault(n.Id) ?? [];
+            string noteStatus;
+            if (pStatuses.Length > 0 && pStatuses.All(s => s == "Received")) noteStatus = "Received";
+            else if (pStatuses.Any(s => s == "Received")) noteStatus = "PartiallyReceived";
+            else noteStatus = "Dispatched";
+
+            string[] palletCodes = [];
+            try { palletCodes = JsonSerializer.Deserialize<string[]>(n.PalletCodesJson) ?? []; } catch { }
+
+            return new FactoryDispatchNoteSummary(
+                n.Id, n.Code, n.FactoryCode, n.DestinationWarehouseId, n.DestinationWarehouseName,
+                n.VehicleNumber, n.DriverName, n.Note, n.PalletCount, n.CartonCount, n.UnitCount,
+                n.DispatchedAt, n.CreatedByName, noteStatus, palletCodes
+            );
+        }).ToArray();
+    }
+
+    public async Task<FactoryDispatchNoteDetail> DispatchNoteDetailAsync(Guid id, CancellationToken ct)
+    {
+        var note = await source.Set<FactoryDispatchNote>().AsNoTracking().SingleOrDefaultAsync(x => x.Id == id, ct)
+            ?? throw FactoryException.NotFound("Không tìm thấy phiếu xuất xưởng.");
+
+        var pallets = await (from p in source.Set<FactoryPallet>().AsNoTracking()
+                             join b in source.Set<FactoryProductionBatch>().AsNoTracking() on p.ProductionBatchId equals b.Id
+                             where p.DispatchNoteId == id || p.DispatchCode == note.Code
+                             orderby p.Code
+                             select new { Pallet = p, Batch = b }).ToArrayAsync(ct);
+
+        var palletIds = pallets.Select(x => x.Pallet.Id).ToArray();
+        var cartonCounts = await source.Set<FactoryCarton>().Where(c => palletIds.Contains(c.PalletId)).GroupBy(c => c.PalletId)
+            .Select(g => new { Id = g.Key, Count = g.Count() }).ToDictionaryAsync(x => x.Id, x => x.Count, ct);
+
+        var items = pallets.Select(x =>
+        {
+            var cCount = cartonCounts.GetValueOrDefault(x.Pallet.Id);
+            return new FactoryDispatchPalletItem(
+                x.Pallet.Id,
+                x.Pallet.Code,
+                x.Batch.Code,
+                x.Batch.Sku,
+                x.Batch.ProductName,
+                x.Batch.ProductionDate,
+                x.Batch.ExpirationDate,
+                cCount,
+                cCount * x.Batch.UnitsPerCarton,
+                x.Pallet.Status,
+                x.Pallet.ReceivedAt,
+                x.Pallet.ReceiptInspectionJson
+            );
+        }).ToArray();
+
+        string status;
+        if (items.Length > 0 && items.All(i => i.Status == "Received")) status = "Received";
+        else if (items.Any(i => i.Status == "Received")) status = "PartiallyReceived";
+        else status = "Dispatched";
+
+        return new FactoryDispatchNoteDetail(note, items, status);
+    }
+
     public Task<Guid> DispatchAsync(Guid batchId, Guid destination, string accessToken, CancellationToken ct, Guid[]? palletIds = null) => Atomic(async () => {
-        if (!(await fscm.WarehouseAsync(destination, accessToken, ct)).IsActive)
+        var warehouse = await fscm.WarehouseAsync(destination, accessToken, ct);
+        if (!warehouse.IsActive)
             throw FactoryException.Validation("Kho đích không hoạt động.");
         if (palletIds is not null && (palletIds.Length == 0 || palletIds.Distinct().Count() != palletIds.Length))
             throw FactoryException.Validation("Chọn ít nhất một pallet, không trùng mã.");
@@ -172,7 +395,50 @@ public sealed class ProductionService(FactoryDbContext source, IFscmGateway fscm
         if (pallets.Length == 0) throw FactoryException.NotFound("Không tìm thấy batch nhà máy.");
         if (pallets.All(x => x.Status != "Packed" && x.DestinationWarehouseId == destination)) return batchId;
         if (pallets.Any(x => x.Status != "Packed")) throw FactoryException.Conflict("Pallet đã phát hành; không đổi kho đích. Chỉ chọn pallet chưa xuất.");
-        foreach (var p in pallets) { p.Status = "Dispatched"; p.DestinationWarehouseId = destination; p.DispatchedAt = clock.GetUtcNow(); p.Version++; }
+
+        var batch = await source.Set<FactoryProductionBatch>().AsNoTracking().SingleAsync(b => b.Id == batchId, ct);
+        var pIds = pallets.Select(p => p.Id).ToArray();
+        var cartonCounts = await source.Set<FactoryCarton>().Where(c => pIds.Contains(c.PalletId)).GroupBy(c => c.PalletId)
+            .Select(g => new { Id = g.Key, Count = g.Count() }).ToDictionaryAsync(x => x.Id, x => x.Count, ct);
+        var totalCartons = pallets.Sum(p => cartonCounts.GetValueOrDefault(p.Id));
+        var totalUnits = totalCartons * batch.UnitsPerCarton;
+
+        var today = VietnamDate(clock.GetUtcNow());
+        var prefix = $"PXN-{batch.FactoryCode}-{today:yyyyMMdd}-";
+        var maxExisting = await source.Set<FactoryDispatchNote>()
+            .Where(d => d.FactoryCode == batch.FactoryCode && d.Code.StartsWith(prefix))
+            .Select(d => d.Code).ToArrayAsync(ct);
+        var nextSeq = 1;
+        foreach (var code in maxExisting)
+        {
+            if (code.Length > prefix.Length && int.TryParse(code[prefix.Length..], out var s) && s >= nextSeq) nextSeq = s + 1;
+        }
+        var now = clock.GetUtcNow();
+        var dispatchNote = new FactoryDispatchNote
+        {
+            Id = Guid.NewGuid(),
+            Code = DispatchNoteCode(batch.FactoryCode, today, nextSeq),
+            FactoryCode = batch.FactoryCode,
+            DestinationWarehouseId = destination,
+            DestinationWarehouseName = warehouse.Name,
+            PalletCount = pallets.Length,
+            CartonCount = totalCartons,
+            UnitCount = totalUnits,
+            DispatchedAt = now,
+            CreatedByUserId = batch.CreatedByUserId,
+            CreatedByName = "Admin",
+            PalletCodesJson = JsonSerializer.Serialize(pallets.OrderBy(p => p.Code).Select(p => p.Code).ToArray())
+        };
+        source.Add(dispatchNote);
+
+        foreach (var p in pallets) {
+            p.Status = "Dispatched";
+            p.DestinationWarehouseId = destination;
+            p.DispatchedAt = now;
+            p.DispatchNoteId = dispatchNote.Id;
+            p.DispatchCode = dispatchNote.Code;
+            p.Version++;
+        }
         await source.SaveChangesAsync(ct); return batchId;
     }, ct);
 
@@ -242,7 +508,9 @@ public sealed class ProductionService(FactoryDbContext source, IFscmGateway fscm
         await source.SaveChangesAsync(ct); return pallet.Id;
     }, ct);
 
-    private async Task<Guid> Atomic(Func<Task<Guid>> action, CancellationToken ct)
+    private Task<Guid> Atomic(Func<Task<Guid>> action, CancellationToken ct) => AtomicResult(action, ct);
+
+    private async Task<T> AtomicResult<T>(Func<Task<T>> action, CancellationToken ct)
     {
         try { return await source.Database.CreateExecutionStrategy().ExecuteAsync(async () => {
             source.ChangeTracker.Clear();
