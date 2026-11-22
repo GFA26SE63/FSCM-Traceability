@@ -45,15 +45,11 @@ public sealed class Program
         var app = builder.Build();
         if (args.Contains("--migrate"))
         {
-            await using var scope = app.Services.CreateAsyncScope();
-            await scope.ServiceProvider.GetRequiredService<FactoryDbContext>().Database.MigrateAsync();
+            await MigrateFactoryDatabaseAsync(app.Services);
             Console.WriteLine("TRACEABILITY MIGRATION OK"); return;
         }
-        await using (var scope = app.Services.CreateAsyncScope())
-        {
-            var db = scope.ServiceProvider.GetRequiredService<FactoryDbContext>();
-            await db.Database.MigrateAsync();
-        }
+        if (!app.Configuration.GetValue<bool>("Database:SkipAutoMigrate"))
+            await MigrateFactoryDatabaseAsync(app.Services);
         app.Use(async (context, next) => {
             try
             {
@@ -123,5 +119,13 @@ public sealed class Program
         app.MapGet("/traceability", () => Results.File(Path.Combine(app.Environment.WebRootPath, "index.html"), "text/html"));
         await app.RunAsync();
     }
+
+    private static async Task MigrateFactoryDatabaseAsync(IServiceProvider services)
+    {
+        await using var scope = services.CreateAsyncScope();
+        var database = scope.ServiceProvider.GetRequiredService<FactoryDbContext>().Database;
+        await database.MigrateAsync();
+    }
+
     private static async Task<string> Token(HttpContext context) => (await context.AuthenticateAsync()).Properties?.GetTokenValue("access_token") ?? "";
 }
