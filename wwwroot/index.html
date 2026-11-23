@@ -56,15 +56,22 @@
         </form>
       </section>
       <div id="workspace" hidden>
-        <div id="production-overview" class="intro">
-          <div>
-            <span class="eyebrow">TỪ NHÀ MÁY ĐẾN KHO</span>
-            <h1>Điều hành traceability</h1>
-            <p>
-              Batch → Serial sản phẩm → Carton → Pallet → Phát hành đến kho.
-            </p>
+        <div class="page-header">
+          <nav class="breadcrumbs" aria-label="Điều hướng phân cấp">
+            <a href="/">Trang chủ</a>
+            <span aria-hidden="true">/</span>
+            <span id="breadcrumb-current" aria-current="page">Điều hành traceability</span>
+          </nav>
+          <div id="production-overview" class="intro">
+            <div>
+              <span class="eyebrow">TỪ NHÀ MÁY ĐẾN KHO</span>
+              <h1>Điều hành traceability</h1>
+              <p>
+                Batch → Serial sản phẩm → Carton → Pallet → Phát hành đến kho.
+              </p>
+            </div>
+            <button id="refresh">Làm mới dữ liệu</button>
           </div>
-          <button id="refresh">Làm mới dữ liệu</button>
         </div>
         <div id="stats" class="stats"></div>
         <section id="production" class="panel workflow-section">

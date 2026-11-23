@@ -1,5 +1,6 @@
 const $ = id => document.getElementById(id);
 const page = ({ '/': 'production', '/production': 'production', '/issuance': 'issuance', '/traceability': 'traceability' })[location.pathname] || 'production';
+const pageTitles = { production: 'Điều hành traceability', issuance: 'Phát hành đến kho', traceability: 'Truy xuất nguồn gốc' };
 let batches = [], warehouses = [], selected = '', busy = false, operation = null, batchView = null;
 let readyPallets = [], selectedReadyPalletIds = new Set(), dispatchNotes = [];
 let currentIssuanceSubtab = 'ready-pallets';
@@ -18,6 +19,7 @@ function showPage() {
     if ($(id)) $(id).hidden = owner !== page;
   for (const [id, owner] of Object.entries({ 'nav-production': 'production', 'nav-issuance': 'issuance', 'nav-traceability': 'traceability' }))
     if ($(id)) $(id).setAttribute('aria-current', owner === page ? 'page' : 'false');
+  if ($('breadcrumb-current')) $('breadcrumb-current').textContent = pageTitles[page];
   if (page === 'issuance') setIssuanceSubtab(currentIssuanceSubtab);
 }
 function signedIn(user) {

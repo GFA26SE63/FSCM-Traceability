@@ -38,6 +38,8 @@ test('application shell uses the FSCM logo and exposes three sidebar navigation 
   assert.match(html, /href="\/production"><span class="nav-index">01<\/span><span>Sản xuất &amp; đóng hàng<\/span>/);
   assert.match(html, /href="\/issuance"><span class="nav-index">02<\/span><span>Phát hành đến kho<\/span>/);
   assert.match(html, /href="\/traceability"><span class="nav-index">03<\/span><span>Truy xuất nguồn gốc<\/span>/);
+  assert.match(html, /<nav class="breadcrumbs" aria-label="Điều hướng phân cấp">/);
+  assert.match(html, /id="breadcrumb-current" aria-current="page">Điều hành traceability/);
   assert.equal((html.match(/src="\/fscm-logo\.png"/g) ?? []).length, 3);
   assert.match(html, /id="login" class="panel login" hidden/);
   assert.match(html, /id="session-loading" class="panel login session-loading"/);
@@ -89,6 +91,7 @@ test('each workflow route displays only its own page content after sign-in', asy
   assert.equal(traceability.nodes.traceability.hidden, false);
   assert.equal(traceability.nodes.issuance.hidden, true);
   assert.equal(traceability.nodes['nav-traceability'].attributes['aria-current'], 'page');
+  assert.equal(traceability.nodes['breadcrumb-current'].textContent, 'Truy xuất nguồn gốc');
 });
 
 test('clicking the actual batch detail action opens a visible dialog and loads persisted mapping', async () => {
