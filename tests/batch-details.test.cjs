@@ -31,13 +31,14 @@ const batch = { id: batchId, code: 'BID-F01-20261113-A-0001', factoryCode: 'F01'
 const pallet = { id: 'pallet', code: 'PID-F01-20261113-A-0001-0001', status: 'Dispatched', destinationWarehouseId: 'warehouse' };
 const carton = 'CID-F01-20261113-A-0001-0001';
 
-test('header uses the FSCM logo consistently and exposes the three page menu items', () => {
+test('application shell uses the FSCM logo and exposes three sidebar navigation items', () => {
   const html = fs.readFileSync(path.join(__dirname, '../wwwroot/index.html'), 'utf8');
   assert.match(html, /<a class="brand" href="\/"[^>]*>/);
   assert.match(html, /<img class="brand-logo" src="\/fscm-logo\.png" alt="FSCM"/);
-  assert.match(html, /href="\/production">Sản xuất &amp; đóng hàng/);
-  assert.match(html, /href="\/issuance">Phát hành đến kho/);
-  assert.match(html, /href="\/traceability">Truy xuất nguồn gốc/);
+  assert.match(html, /<aside id="main-nav" class="sidebar"[^>]*>/);
+  assert.match(html, /href="\/production"><span class="nav-index">01<\/span><span>Sản xuất &amp; đóng hàng<\/span>/);
+  assert.match(html, /href="\/issuance"><span class="nav-index">02<\/span><span>Phát hành đến kho<\/span>/);
+  assert.match(html, /href="\/traceability"><span class="nav-index">03<\/span><span>Truy xuất nguồn gốc<\/span>/);
   assert.equal((html.match(/src="\/fscm-logo\.png"/g) ?? []).length, 3);
   assert.match(html, /id="login" class="panel login" hidden/);
   assert.match(html, /id="session-loading" class="panel login session-loading"/);

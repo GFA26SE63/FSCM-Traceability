@@ -480,6 +480,16 @@ public sealed class ProductionService(FactoryDbContext source, IFscmGateway fscm
         return DispatchedQuery(warehouseIds.Distinct().ToArray()).ToArrayAsync(ct);
     }
 
+    /// <summary>Integration: which dispatch note each pallet left on, so FSCM can group older per-pallet receipts.</summary>
+    public async Task<PalletDispatchInfo[]> PalletDispatchInfoAsync(Guid[] palletIds, CancellationToken ct)
+    {
+        if (palletIds.Length is < 1 or > 500 || palletIds.Contains(Guid.Empty))
+            throw FactoryException.Validation("Cần danh sách pallet hợp lệ (tối đa 500 pallet).");
+        var ids = palletIds.Distinct().ToArray();
+        return await source.Set<FactoryPallet>().AsNoTracking().Where(p => ids.Contains(p.Id))
+            .Select(p => new PalletDispatchInfo(p.Id, p.DispatchNoteId, p.DispatchCode)).ToArrayAsync(ct);
+    }
+
     public async Task<PalletManifest> ManifestAsync(string code, CancellationToken ct)
     {
         var pallet = await source.Set<FactoryPallet>().AsNoTracking().SingleOrDefaultAsync(x => x.Code == code, ct)
