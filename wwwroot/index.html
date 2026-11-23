@@ -16,13 +16,17 @@
           ><small>Sản xuất · Đóng hàng · Truy xuất</small>
         </div>
       </a>
-      <nav id="main-nav" class="main-nav" aria-label="Quy trình traceability" hidden>
-        <a id="nav-production" href="/production">Sản xuất &amp; đóng hàng</a>
-        <a id="nav-issuance" href="/issuance">Phát hành đến kho</a>
-        <a id="nav-traceability" href="/traceability">Truy xuất nguồn gốc</a>
-      </nav>
       <div id="session"></div>
     </header>
+    <aside id="main-nav" class="sidebar" aria-label="Quy trình traceability" hidden>
+      <div class="sidebar-title">ĐIỀU HÀNH NHÀ MÁY</div>
+      <nav class="sidebar-menu">
+        <a id="nav-production" href="/production"><span class="nav-index">01</span><span>Sản xuất &amp; đóng hàng</span></a>
+        <a id="nav-issuance" href="/issuance"><span class="nav-index">02</span><span>Phát hành đến kho</span></a>
+        <a id="nav-traceability" href="/traceability"><span class="nav-index">03</span><span>Truy xuất nguồn gốc</span></a>
+      </nav>
+      <p class="sidebar-note">Quản lý mẻ, pallet và hành trình hàng hóa từ nhà máy đến kho.</p>
+    </aside>
     <main>
       <div id="notice" role="status" aria-live="polite"></div>
       <section id="session-loading" class="panel login session-loading" aria-live="polite">
