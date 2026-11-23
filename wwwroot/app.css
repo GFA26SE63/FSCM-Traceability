@@ -29,3 +29,18 @@ input,select,textarea,button,code,pre,kbd,samp,svg text,svg tspan{font-family:Ar
 .view-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;gap:16px}
 @media(max-width:900px){.card-fields{grid-template-columns:repeat(2,minmax(0,1fr))}.card-fields .wide-field{grid-column:span 2}.dispatch-summary-row{flex-direction:column;align-items:stretch}}
 @media(max-width:550px){.card-fields{grid-template-columns:1fr}.card-fields .wide-field{grid-column:auto}}
+
+/* Authenticated application shell: persistent sidebar navigation, portal-style. */
+.sidebar{position:fixed;z-index:15;top:76px;bottom:0;left:0;width:256px;padding:24px 14px;background:#102f38;border-right:1px solid #244a53;color:#dbe9eb;overflow-y:auto}
+.sidebar-title{padding:0 12px 12px;font-size:11px;font-weight:700;letter-spacing:.08em;color:#8ae0ce}
+.sidebar-menu{display:grid;gap:5px;border-top:1px solid #315860;padding-top:12px}
+.sidebar-menu a{display:flex;align-items:center;gap:11px;padding:12px;border-radius:8px;color:#dbe9eb;text-decoration:none;font-size:13px;font-weight:700;line-height:1.35}
+.sidebar-menu a:hover,.sidebar-menu a:focus-visible{background:#204750;color:#fff;outline:none}
+.sidebar-menu a[aria-current=page]{background:#087d69;color:#fff;box-shadow:inset 3px 0 #8ae0ce}
+.nav-index{display:grid;place-items:center;width:27px;height:27px;border-radius:6px;background:#204750;color:#8ae0ce;font-size:10px;flex:0 0 auto}
+.sidebar-menu a[aria-current=page] .nav-index{background:#dff8ef;color:#086b5b}
+.sidebar-note{margin:24px 12px 0;padding-top:16px;border-top:1px solid #315860;color:#a7c1c6;font-size:12px;line-height:1.55}
+body.signed-in main,body.signed-in footer{max-width:none;margin-left:280px;margin-right:24px}
+body.signed-in main{margin-top:30px;margin-bottom:30px;padding:0;min-height:calc(100vh - 150px)}
+body.signed-in footer{padding:0;margin-top:30px;margin-bottom:30px}
+@media(max-width:800px){.sidebar{position:static;width:auto;padding:10px 14px;border-right:0;border-bottom:1px solid #315860}.sidebar-title,.sidebar-note{display:none}.sidebar-menu{display:flex;gap:4px;overflow-x:auto;border-top:0;padding-top:0}.sidebar-menu a{padding:9px 10px;white-space:nowrap;font-size:11px}.nav-index{width:22px;height:22px;font-size:9px}body.signed-in main,body.signed-in footer{margin-left:auto;margin-right:auto;padding-left:14px;padding-right:14px}}
