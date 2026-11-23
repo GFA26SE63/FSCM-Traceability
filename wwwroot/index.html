@@ -4,8 +4,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>Nhà máy · FSCM Traceability</title>
-    <link rel="stylesheet" href="/app.css?v=session-navigation-3" />
-    <script src="/app.js?v=session-navigation-3" defer></script>
+    <link rel="stylesheet" href="/app.css?v=dispatch-transport-1" />
+    <script src="/app.js?v=dispatch-transport-1" defer></script>
   </head>
   <body>
     <header>
@@ -164,8 +164,8 @@
                 <div class="card-title"><strong>Thông tin lập phiếu xuất xưởng</strong></div>
                 <div class="card-fields">
                   <label>Kho nhận hàng (*)<select id="ready-destination-warehouse" required><option value="">-- Chọn kho đích tiếp nhận --</option></select></label>
-                  <label>Biển số xe<input id="ready-vehicle-number" placeholder="VD: 59C-123.45" maxlength="50" /></label>
-                  <label>Tài xế / Người vận chuyển<input id="ready-driver-name" placeholder="VD: Nguyễn Văn A" maxlength="100" /></label>
+                  <label>Biển số xe (*)<input id="ready-vehicle-number" placeholder="VD: 59C-123.45" maxlength="50" required /></label>
+                  <label>Tài xế / Người vận chuyển (*)<input id="ready-driver-name" placeholder="VD: Nguyễn Văn A" maxlength="100" required /></label>
                   <label class="wide-field">Ghi chú xuất xưởng<input id="ready-dispatch-note" placeholder="VD: Xuất hàng theo đơn điều chuyển" maxlength="200" /></label>
                 </div>
                 <div class="dispatch-summary-row">
@@ -264,6 +264,14 @@
             </div>
           </div>
           <div id="dispatch-detail-content"></div>
+        </dialog>
+        <dialog id="confirm-dialog" class="confirm-dialog" aria-labelledby="confirm-title">
+          <div class="confirm-head"><h2 id="confirm-title">Xác nhận</h2></div>
+          <div id="confirm-body" class="confirm-body"></div>
+          <div class="confirm-actions">
+            <button type="button" id="confirm-cancel">Hủy</button>
+            <button type="button" id="confirm-ok" class="primary">Xác nhận</button>
+          </div>
         </dialog>
         <section id="traceability" class="panel workflow-section">
           <span class="eyebrow">03 · TRUY XUẤT NGUỒN GỐC</span>

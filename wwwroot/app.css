@@ -29,6 +29,19 @@ input,select,textarea,button,code,pre,kbd,samp,svg text,svg tspan{font-family:Ar
 .view-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;gap:16px}
 @media(max-width:900px){.card-fields{grid-template-columns:repeat(2,minmax(0,1fr))}.card-fields .wide-field{grid-column:span 2}.dispatch-summary-row{flex-direction:column;align-items:stretch}}
 @media(max-width:550px){.card-fields{grid-template-columns:1fr}.card-fields .wide-field{grid-column:auto}}
+/* Link buttons (e.g. "In Phiếu Xuất (A4)") centre their text like real buttons and share the primary style. */
+.button{display:inline-flex;align-items:center;justify-content:center;text-align:center;line-height:1.2}
+.button.primary{color:white;background:#087d69;border-color:#087d69}.button.primary:hover{background:#086b5b}
+.dialog-header .row-actions{align-items:center}
+/* Confirm popup, same layout as the FSCM portal ConfirmDialog: title, message, Hủy + confirm on the right. */
+.confirm-dialog{width:min(460px,94vw);padding:0}
+.confirm-dialog .confirm-head{padding:18px 22px 0}.confirm-dialog .confirm-head h2{margin:0;font-size:17px}
+.confirm-dialog .confirm-body{padding:12px 22px 4px;line-height:1.5}.confirm-dialog .confirm-body p{margin:0 0 10px;color:#172b35}
+.confirm-dialog .confirm-facts{background:#f4f7f8;border-radius:8px;padding:10px 12px;font-size:13px;line-height:1.7}
+.confirm-dialog .confirm-note{font-size:13px;color:#58717c}
+.confirm-dialog .confirm-actions{display:flex;justify-content:flex-end;gap:8px;padding:14px 22px 18px;border-top:1px solid #e4ecee;margin-top:8px}
+/* Batch-dialog dispatch form: warehouse, vehicle, driver and note wrap onto several lines. */
+.dispatch-form{flex-wrap:wrap}.dispatch-form label{min-width:180px}
 
 /* Authenticated application shell: persistent sidebar navigation, portal-style. */
 .sidebar{position:fixed;z-index:15;top:76px;bottom:0;left:0;width:256px;padding:24px 14px;background:#102f38;border-right:1px solid #244a53;color:#dbe9eb;overflow-y:auto}
