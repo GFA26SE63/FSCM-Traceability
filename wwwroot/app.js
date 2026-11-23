@@ -21,6 +21,7 @@ function showPage() {
   if (page === 'issuance') setIssuanceSubtab(currentIssuanceSubtab);
 }
 function signedIn(user) {
+  document.body.classList.add('signed-in');
   if ($('session-loading')) $('session-loading').hidden = true;
   if ($('login')) $('login').hidden = true;
   if ($('workspace')) $('workspace').hidden = false;
@@ -34,6 +35,7 @@ function signedIn(user) {
 async function api(path, method = 'GET', body, key) {
   const response = await fetch(path, { method, credentials: 'same-origin', headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'Traceability', ...(key ? { 'Idempotency-Key': key } : {}) }, body: body == null ? undefined : JSON.stringify(body) });
   if (response.status === 401) {
+    document.body.classList.remove('signed-in');
     if ($('session-loading')) $('session-loading').hidden = true;
     if ($('workspace')) $('workspace').hidden = true;
     if ($('login')) $('login').hidden = false;
