@@ -50,6 +50,32 @@ function table(headers, rows) {
   const body = el('tbody'); rows.forEach(cells => { const tr = el('tr'); cells.forEach(value => { const td = el('td'); td.append(value instanceof Node ? value : el('span', value ?? '—')); tr.append(td); }); body.append(tr); });
   t.append(body); wrap.append(t); if (!rows.length) wrap.append(el('div', 'Chưa có dữ liệu.', 'empty')); return wrap;
 }
+/**
+ * Confirm popup (#confirm-dialog), same layout as the FSCM portal ConfirmDialog. Resolves true only on the
+ * confirm button; "Hủy", Esc or closing the dialog resolve false.
+ */
+function confirmAction({ title, message, facts = [], note = '', confirmLabel = 'Xác nhận' }) {
+  const dialog = $('confirm-dialog');
+  $('confirm-title').textContent = title;
+  const body = $('confirm-body'); body.replaceChildren(el('p', message));
+  if (facts.length) {
+    const box = el('div', null, 'confirm-facts');
+    facts.forEach(([label, value]) => { const row = el('div'); row.append(el('b', label + ': '), document.createTextNode(value)); box.append(row); });
+    body.append(box);
+  }
+  if (note) body.append(el('p', note, 'confirm-note'));
+  $('confirm-ok').textContent = confirmLabel;
+  return new Promise(resolve => {
+    let answered = false;
+    const finish = ok => { if (answered) return; answered = true; if (dialog.open) dialog.close(); resolve(ok); };
+    $('confirm-ok').onclick = () => finish(true);
+    $('confirm-cancel').onclick = () => finish(false);
+    dialog.onclose = () => finish(false);
+    dialog.showModal();
+    $('confirm-cancel').focus();
+  });
+}
+const warehouseLabel = id => { const w = warehouses.find(x => x.id === id); return w ? w.code + ' · ' + w.name : id; };
 function button(text, action, className) { const b = el('button', text, className); b.type = 'button'; b.onclick = () => run(action); return b; }
 function link(text, href, target = '_blank') { const a = el('a', text, 'button'); a.href = href; a.target = target; a.rel = 'noopener'; return a; }
 function code(value) { return el('code', value); }
@@ -262,10 +288,33 @@ function renderBatch() {
   if (packed) {
     const form = el('form', null, 'scan dispatch-form'), label = el('label', 'Kho nhận'), select = el('select'); select.required = true; select.append(new Option('Chọn kho nhận', ''));
     warehouses.filter(w => w.isActive).forEach(w => select.append(new Option(w.code + ' · ' + w.name, w.id))); label.append(select); form.append(label);
+    // Same transport fields as the "Lập phiếu xuất xưởng" page: vehicle and driver are required for every dispatch.
+    const field = (text, max, placeholder, required) => {
+      const wrap = el('label', text), input = el('input'); input.maxLength = max; input.placeholder = placeholder; input.required = required;
+      wrap.append(input); form.append(wrap); return input;
+    };
+    const vehicle = field('Biển số xe (*)', 50, 'VD: 59C-123.45', true);
+    const driver = field('Tài xế / Người vận chuyển (*)', 100, 'VD: Nguyễn Văn A', true);
+    const remark = field('Ghi chú xuất xưởng', 200, 'Không bắt buộc', false);
     form.append(el('button', 'Phát hành pallet đã chọn', 'primary'));
-    form.onsubmit = e => { e.preventDefault(); run(async () => {
-      if (!selectedPallets.size) throw new Error('Tick chọn ít nhất một pallet cần phát hành.');
-      await api('/api/batches/' + view.batch.id + '/dispatch', 'POST', { destinationWarehouseId: select.value, palletIds: [...selectedPallets] }); await refresh(); notice('Đã phát hành pallet. Đã lưu phiếu xuất xưởng tại nhà máy.'); }); };
+    form.onsubmit = async e => { e.preventDefault(); if (busy) return;
+      if (!selectedPallets.size) { notice('Tick chọn ít nhất một pallet cần phát hành.', true); return; }
+      if (!select.value) { notice('Chọn kho nhận.', true); return; }
+      const transport = { vehicleNumber: vehicle.value.trim(), driverName: driver.value.trim(), note: remark.value.trim() };
+      if (!transport.vehicleNumber || !transport.driverName) { notice('Nhập biển số xe và tài xế trước khi phát hành pallet.', true); return; }
+      const chosen = view.pallets.filter(row => selectedPallets.has(row.pallet.id));
+      const ok = await confirmAction({
+        title: 'Xác nhận xuất pallet sang kho',
+        message: `Phát hành ${chosen.length} pallet của mẻ ${view.batch.code} đến kho nhận?`,
+        facts: [['Kho nhận', warehouseLabel(select.value)], ['Pallet', chosen.map(row => row.pallet.code).join(', ')],
+          ['Số lượng', `${chosen.reduce((n, row) => n + row.cartonCount, 0)} carton · ${chosen.reduce((n, row) => n + row.unitCount, 0)} sản phẩm`],
+          ['Xe / tài xế', `${transport.vehicleNumber} · ${transport.driverName}`]],
+        note: 'Sau khi phát hành, pallet không đổi được kho đích. Thủ kho quét nhận trên phiếu nhập FSCM.',
+        confirmLabel: 'Phát hành pallet',
+      });
+      if (!ok) return;
+      await run(async () => {
+      await api('/api/batches/' + view.batch.id + '/dispatch', 'POST', { destinationWarehouseId: select.value, palletIds: [...selectedPallets], ...transport }); await refresh(); notice('Đã phát hành pallet. Đã lưu phiếu xuất xưởng tại nhà máy.'); }); };
     section.append(form);
   }
   section.append(table([...(packed ? ['Chọn'] : []), 'Pallet code', 'Carton', 'Sản phẩm', 'Trạng thái', 'Kho đích', 'QR'], view.pallets.map(row => {
@@ -386,14 +435,30 @@ if ($('btn-refresh-dispatches')) $('btn-refresh-dispatches').onclick = () => run
   notice('Đã cập nhật sổ phiếu xuất kho nhà máy.');
 });
 
-if ($('btn-create-dispatch')) $('btn-create-dispatch').onclick = () => run(async () => {
+if ($('btn-create-dispatch')) $('btn-create-dispatch').onclick = async () => {
+  if (busy) return;
   const destinationWarehouseId = $('ready-destination-warehouse').value;
-  if (!destinationWarehouseId) throw new Error('Vui lòng chọn kho đích tiếp nhận hàng.');
-  if (selectedReadyPalletIds.size === 0) throw new Error('Vui lòng chọn ít nhất một pallet để xuất kho.');
+  if (!destinationWarehouseId) { notice('Vui lòng chọn kho đích tiếp nhận hàng.', true); return; }
+  if (selectedReadyPalletIds.size === 0) { notice('Vui lòng chọn ít nhất một pallet để xuất kho.', true); return; }
 
   const vehicleNumber = $('ready-vehicle-number') ? $('ready-vehicle-number').value.trim() : '';
   const driverName = $('ready-driver-name') ? $('ready-driver-name').value.trim() : '';
   const note = $('ready-dispatch-note') ? $('ready-dispatch-note').value.trim() : '';
+  if (!vehicleNumber || !driverName) { notice('Nhập biển số xe và tài xế trước khi phát hành pallet.', true); return; }
+  const chosen = readyPallets.filter(p => selectedReadyPalletIds.has(p.palletId));
+  const ok = await confirmAction({
+    title: 'Xác nhận xuất pallet sang kho',
+    message: `Tạo phiếu xuất xưởng và phát hành ${selectedReadyPalletIds.size} pallet đến kho nhận?`,
+    facts: [
+      ['Kho nhận', warehouseLabel(destinationWarehouseId)],
+      ['Số lượng', `${selectedReadyPalletIds.size} pallet · ${chosen.reduce((n, p) => n + (p.cartonCount || 0), 0).toLocaleString('vi-VN')} thùng · ${chosen.reduce((n, p) => n + (p.unitCount || 0), 0).toLocaleString('vi-VN')} sản phẩm`],
+      ['Xe / tài xế', `${vehicleNumber} · ${driverName}`],
+    ],
+    note: 'Sau khi phát hành, pallet không đổi được kho đích. Thủ kho quét nhận trên phiếu nhập FSCM.',
+    confirmLabel: 'Tạo phiếu & phát hành',
+  });
+  if (!ok) return;
+  await run(async () => {
 
   const result = await api('/api/dispatches', 'POST', {
     destinationWarehouseId,
@@ -411,7 +476,8 @@ if ($('btn-create-dispatch')) $('btn-create-dispatch').onclick = () => run(async
   await refresh();
   notice(`Đã tạo phiếu xuất kho ${result.code} và phát hành ${result.palletCount} pallet thành công!`);
   await openDispatchNote(result.id);
-});
+  });
+};
 
 async function loadCatalog() {
   const products = await api('/api/catalog/products');

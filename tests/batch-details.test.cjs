@@ -16,6 +16,7 @@ class Element {
   showModal() { this.open = true; }
   close() { this.open = false; (this.events.close || []).forEach(fn => fn()); }
   scrollIntoView() { this.scrolled = true; }
+  focus() { this.focused = true; }
 }
 function find(node, text) {
   if (node.tagName === 'button' && node.textContent === text) return node;
@@ -52,7 +53,7 @@ async function setup(hash = '', pathname = '/') {
   const context = vm.createContext({
     Node: Element, Date, URLSearchParams, console,
     crypto: { randomUUID: () => 'request-key' },
-    document: { getElementById(id) { assert.ok(nodes[id], `Unknown element ${id}`); return nodes[id]; }, createElement: tag => new Element(tag), body: new Element('body') },
+    document: { getElementById(id) { assert.ok(nodes[id], `Unknown element ${id}`); return nodes[id]; }, createElement: tag => new Element(tag), createTextNode: text => { const node = new Element('#text'); node.textContent = text; return node; }, body: new Element('body') },
     Option: class extends Element { constructor(text, value) { super('option'); this.textContent = text; this.value = value; } },
     FormData: class { get(name) { return { palletCount: '2', cartonsPerPallet: '10', unitsPerCarton: '12' }[name]; } },
     location, history: { replaceState(_, __, value) { location.hash = value.includes('#') ? value.slice(value.indexOf('#')) : ''; } },
@@ -173,9 +174,20 @@ test('dispatch form sends only selected packed pallets and excludes already disp
   assert.equal(checks.length, 2);
   checks[1].checked = true; checks[1].onchange();
   form.children[0].children[0].value = 'warehouse-2';
-  form.onsubmit({ preventDefault() {} }); await new Promise(resolve => setImmediate(resolve));
+  // Vehicle and driver are required, as on the dispatch-note page.
+  form.onsubmit({ preventDefault() {} });
+  assert.equal(app.nodes['confirm-dialog'].open, false);
+  assert.match(app.nodes.notice.textContent, /biển số xe và tài xế/);
+  form.children[1].children[0].value = ' 59C-123.45 ';
+  form.children[2].children[0].value = 'Tài xế Ba';
+  const pending = form.onsubmit({ preventDefault() {} });
+  assert.equal(app.nodes['confirm-dialog'].open, true);
+  assert.ok(app.nodes['confirm-body'].textContent.includes('PID-NEW-2'));
+  assert.ok(!app.nodes['confirm-body'].textContent.includes('PID-NEW-1'));
+  assert.equal(app.run('sent.length'), 0, 'nothing is sent before confirming');
+  app.nodes['confirm-ok'].onclick(); await pending;
   const sent = JSON.parse(app.run('JSON.stringify(sent)'));
-  assert.deepEqual(sent[0], ['/api/batches/' + batchId + '/dispatch', 'POST', { destinationWarehouseId: 'warehouse-2', palletIds: ['new-2'] }]);
+  assert.deepEqual(sent[0], ['/api/batches/' + batchId + '/dispatch', 'POST', { destinationWarehouseId: 'warehouse-2', palletIds: ['new-2'], vehicleNumber: '59C-123.45', driverName: 'Tài xế Ba', note: '' }]);
 });
 
 
@@ -235,7 +247,18 @@ test('ready pallets table renders and allows selecting pallets to create factory
     return { id: 'note-1', code: 'PXN-F01-20261121-0001', palletCount: 2 };
   }; refresh = async () => {}; openDispatchNote = async () => {};`);
 
-  await app.nodes['btn-create-dispatch'].onclick();
+  // "Hủy" in the confirm popup sends nothing.
+  let pending = app.nodes['btn-create-dispatch'].onclick();
+  assert.equal(app.nodes['confirm-dialog'].open, true);
+  assert.equal(app.nodes['confirm-title'].textContent, 'Xác nhận xuất pallet sang kho');
+  assert.ok(app.nodes['confirm-body'].textContent.includes('WH01 · Kho Thủ Đức'));
+  assert.ok(app.nodes['confirm-body'].textContent.includes('2 pallet · 20 thùng · 240 sản phẩm'));
+  app.nodes['confirm-cancel'].onclick(); await pending;
+  assert.equal(app.nodes['confirm-dialog'].open, false);
+  assert.equal(app.run('dispatchedData.length'), 0);
+  // Confirming sends the dispatch.
+  pending = app.nodes['btn-create-dispatch'].onclick();
+  app.nodes['confirm-ok'].onclick(); await pending;
   const dispatched = JSON.parse(app.run('JSON.stringify(dispatchedData)'));
   assert.equal(dispatched[0].url, '/api/dispatches');
   assert.equal(dispatched[0].method, 'POST');
@@ -262,4 +285,20 @@ test('dispatch notes table renders factory dispatch notes with print link and st
   const printLink = findLink(app.nodes['dispatch-notes-table'], 'In Phiếu (A4)');
   assert.ok(printLink);
   assert.equal(printLink.href, '/api/dispatches/note-1/print');
+});
+test('dispatch-note page also requires vehicle and driver before the confirm popup', async () => {
+  const app = await setup('', '/issuance');
+  app.run(`readyPallets = [{ palletId: 'p-1', palletCode: 'PID-1', batchId: 'b', batchCode: 'BID', sku: 'SKU001', productName: 'Sữa', productionLine: 'A', productionDate: '2026-11-21', expirationDate: '2026-12-05', cartonCount: 10, unitCount: 120 }];
+    warehouses = [{ id: 'wh-1', code: 'WH01', name: 'Kho Thủ Đức', isActive: true }]; renderReadyPallets(); selectedReadyPalletIds.add('p-1');
+    globalThis.sent = []; api = async (...args) => { sent.push(args); return {}; };`);
+  app.nodes['ready-destination-warehouse'].value = 'wh-1';
+  app.nodes['ready-vehicle-number'].value = '59C-888.88';
+  app.nodes['ready-driver-name'].value = '   ';
+  await app.nodes['btn-create-dispatch'].onclick();
+  assert.equal(app.nodes['confirm-dialog'].open, false);
+  assert.match(app.nodes.notice.textContent, /biển số xe và tài xế/);
+  assert.equal(app.run('sent.length'), 0);
+  const html = fs.readFileSync(path.join(__dirname, '../wwwroot/index.html'), 'utf8');
+  assert.match(html, /id="ready-vehicle-number"[^>]*required/);
+  assert.match(html, /id="ready-driver-name"[^>]*required/);
 });

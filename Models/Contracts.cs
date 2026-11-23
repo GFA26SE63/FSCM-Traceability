@@ -1,7 +1,9 @@
 namespace Fscm.Traceability.Models;
 
+/// <remarks>The dispatch-note fields were added later (nullable) so FSCM can group pallets of one PXN into one PNK.</remarks>
 public sealed record DispatchedPallet(Guid PalletId, string PalletCode, Guid DestinationWarehouseId,
-    DateTimeOffset? DispatchedAt, string BatchCode, string Sku, string ProductName, int CartonCount, DateOnly ExpirationDate);
+    DateTimeOffset? DispatchedAt, string BatchCode, string Sku, string ProductName, int CartonCount, DateOnly ExpirationDate,
+    Guid? DispatchNoteId = null, string? DispatchCode = null, string? VehicleNumber = null, string? DriverName = null);
 
 public sealed record SimulateProductionRequest(string FactoryCode, string ProductionLine, Guid ProductId,
     DateOnly ProductionDate, DateOnly ExpirationDate, int PalletCount, int CartonsPerPallet, int UnitsPerCarton);
@@ -16,7 +18,9 @@ public sealed record FscmProduct(Guid Id, string Sku, string Name, string Status
 public sealed record FscmWarehouse(Guid Id, string Code, string Name, bool IsActive);
 public sealed record ProductPage(FscmProduct[] Items, int TotalCount, int Page, int PageSize);
 public sealed record LoginRequest(string Identifier, string Password);
-public sealed record DispatchRequest(Guid DestinationWarehouseId, Guid[]? PalletIds = null);
+/// <summary>Dispatch from the batch dialog. Vehicle and driver are required, the same as a dispatch note (PXN).</summary>
+public sealed record DispatchRequest(Guid DestinationWarehouseId, Guid[]? PalletIds = null,
+    string? VehicleNumber = null, string? DriverName = null, string? Note = null);
 public sealed record PalletOverview(FactoryPallet Pallet, int CartonCount, int UnitCount);
 public sealed record BatchDetail(FactoryProductionBatch Batch, string Sku, string ProductName,
     PalletOverview[] Pallets, int CartonCount, int UnitCount);

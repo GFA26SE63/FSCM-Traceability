@@ -97,7 +97,7 @@ public static class FactoryLabels
     .sign-box strong {{ display: block; font-size: 13px; text-transform: uppercase; margin-bottom: 4px; }}
     .sign-box small {{ font-style: italic; color: #667; display: block; margin-bottom: 60px; font-size: 11px; }}
     .sign-box .sign-name {{ font-weight: 600; font-size: 13px; }}
-    button.btn-print {{ background: #087d69; color: white; border: none; padding: 10px 22px; font-size: 14px; font-weight: 600; border-radius: 6px; cursor: pointer; }}
+    button.btn-print {{ display: inline-flex; align-items: center; justify-content: center; text-align: center; line-height: 1.2; background: #087d69; color: white; border: none; padding: 10px 22px; font-size: 14px; font-weight: 600; border-radius: 6px; cursor: pointer; }}
     button.btn-print:hover {{ background: #066756; }}
   </style>
 </head>

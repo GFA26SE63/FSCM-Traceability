@@ -86,7 +86,8 @@ public sealed class Program
         admin.MapPost("/batches/simulate", async (SimulateProductionRequest request, HttpContext c, ProductionService service, CancellationToken ct) =>
             new { id = await service.SimulateAsync(request, c.Request.Headers["Idempotency-Key"].ToString(), Guid.Parse(c.User.FindFirstValue(ClaimTypes.NameIdentifier)!), await Token(c), ct) });
         admin.MapPost("/batches/{id:guid}/dispatch", async (Guid id, DispatchRequest request, HttpContext c, ProductionService service, CancellationToken ct) =>
-            new { id = await service.DispatchAsync(id, request.DestinationWarehouseId, await Token(c), ct, request.PalletIds) });
+            new { id = await service.DispatchAsync(id, request.DestinationWarehouseId, await Token(c), ct, request.PalletIds,
+                request.VehicleNumber, request.DriverName, request.Note) });
         admin.MapGet("/pallets/ready", (ProductionService service, CancellationToken ct) => service.ReadyPalletsAsync(ct));
         admin.MapPost("/dispatches", async (CreateDispatchNoteRequest request, HttpContext c, ProductionService service, CancellationToken ct) =>
             await service.CreateDispatchNoteAsync(request, Guid.Parse(c.User.FindFirstValue(ClaimTypes.NameIdentifier)!), c.User.Identity?.Name ?? "Admin", await Token(c), ct));
