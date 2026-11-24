@@ -56,18 +56,31 @@ article {
   margin: 8px;
   break-inside: avoid;
   vertical-align: top;
+  text-align: center;
 }
+article b,
+b {
+  display: block;
+  text-align: center;
+}
+article svg,
 svg {
   display: block;
   width: 180px;
   height: 180px;
+  margin: 0 auto;
 }
+article small,
 small {
   display: block;
+  text-align: center;
   overflow-wrap: anywhere;
+  word-break: break-word;
 }
+article p,
 p {
   margin: 7px 0;
+  text-align: center;
 }
 @media print {
   .print-toolbar {
@@ -75,6 +88,25 @@ p {
   }
   body {
     padding: 0;
+  }
+  article {
+    text-align: center;
+  }
+  article b,
+  b {
+    text-align: center;
+  }
+  article svg,
+  svg {
+    margin: 0 auto;
+  }
+  article small,
+  small {
+    text-align: center;
+  }
+  article p,
+  p {
+    text-align: center;
   }
 }
 button,
