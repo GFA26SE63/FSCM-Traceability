@@ -204,6 +204,7 @@ public sealed class ProductionService(FactoryDbContext source, IFscmGateway fscm
             throw FactoryException.Validation("Chọn ít nhất một pallet để lập phiếu xuất kho.");
         if (request.PalletIds.Distinct().Count() != request.PalletIds.Length)
             throw FactoryException.Validation("Danh sách pallet chọn không được trùng lặp.");
+        RequireTransport(request.VehicleNumber, request.DriverName);
 
         var warehouse = await fscm.WarehouseAsync(request.DestinationWarehouseId, accessToken, ct);
         if (!warehouse.IsActive)
@@ -383,7 +384,19 @@ public sealed class ProductionService(FactoryDbContext source, IFscmGateway fscm
         return new FactoryDispatchNoteDetail(note, items, status);
     }
 
-    public Task<Guid> DispatchAsync(Guid batchId, Guid destination, string accessToken, CancellationToken ct, Guid[]? palletIds = null) => Atomic(async () => {
+    /// <summary>Every dispatch (from the batch dialog or the PXN page) must name the vehicle and the driver.</summary>
+    public static void RequireTransport(string? vehicleNumber, string? driverName)
+    {
+        if (string.IsNullOrWhiteSpace(vehicleNumber) || vehicleNumber.Trim().Length > 50)
+            throw FactoryException.Validation("Nhập biển số xe vận chuyển (tối đa 50 ký tự).");
+        if (string.IsNullOrWhiteSpace(driverName) || driverName.Trim().Length > 100)
+            throw FactoryException.Validation("Nhập tên tài xế / người vận chuyển (tối đa 100 ký tự).");
+    }
+
+    public Task<Guid> DispatchAsync(Guid batchId, Guid destination, string accessToken, CancellationToken ct, Guid[]? palletIds = null,
+        string? vehicleNumber = null, string? driverName = null, string? note = null) => Atomic(async () => {
+        RequireTransport(vehicleNumber, driverName);
+        if (note?.Trim().Length > 200) throw FactoryException.Validation("Ghi chú xuất xưởng tối đa 200 ký tự.");
         var warehouse = await fscm.WarehouseAsync(destination, accessToken, ct);
         if (!warehouse.IsActive)
             throw FactoryException.Validation("Kho đích không hoạt động.");
@@ -421,6 +434,9 @@ public sealed class ProductionService(FactoryDbContext source, IFscmGateway fscm
             FactoryCode = batch.FactoryCode,
             DestinationWarehouseId = destination,
             DestinationWarehouseName = warehouse.Name,
+            VehicleNumber = vehicleNumber!.Trim(),
+            DriverName = driverName!.Trim(),
+            Note = string.IsNullOrWhiteSpace(note) ? null : note.Trim(),
             PalletCount = pallets.Length,
             CartonCount = totalCartons,
             UnitCount = totalUnits,
@@ -446,18 +462,32 @@ public sealed class ProductionService(FactoryDbContext source, IFscmGateway fscm
     public IQueryable<DispatchedPallet> DispatchedQuery(Guid[] warehouseIds) =>
         from pallet in source.Set<FactoryPallet>().AsNoTracking()
         join batch in source.Set<FactoryProductionBatch>().AsNoTracking() on pallet.ProductionBatchId equals batch.Id
+        join note in source.Set<FactoryDispatchNote>().AsNoTracking() on pallet.DispatchNoteId equals note.Id into notes
+        from note in notes.DefaultIfEmpty()
         where pallet.Status == "Dispatched" && pallet.DestinationWarehouseId.HasValue
             && warehouseIds.Contains(pallet.DestinationWarehouseId.Value)
         orderby pallet.DispatchedAt, pallet.Code
         select new DispatchedPallet(pallet.Id, pallet.Code, pallet.DestinationWarehouseId!.Value,
             pallet.DispatchedAt, batch.Code, batch.Sku, batch.ProductName,
-            source.Set<FactoryCarton>().Count(c => c.PalletId == pallet.Id), batch.ExpirationDate);
+            source.Set<FactoryCarton>().Count(c => c.PalletId == pallet.Id), batch.ExpirationDate,
+            pallet.DispatchNoteId, note != null ? note.Code : pallet.DispatchCode,
+            note != null ? note.VehicleNumber : null, note != null ? note.DriverName : null);
 
     public Task<DispatchedPallet[]> DispatchedAsync(Guid[] warehouseIds, CancellationToken ct)
     {
         if (warehouseIds.Length is < 1 or > 500 || warehouseIds.Contains(Guid.Empty))
             throw FactoryException.Validation("Cần danh sách kho nhận hợp lệ (tối đa 500 kho).");
         return DispatchedQuery(warehouseIds.Distinct().ToArray()).ToArrayAsync(ct);
+    }
+
+    /// <summary>Integration: which dispatch note each pallet left on, so FSCM can group older per-pallet receipts.</summary>
+    public async Task<PalletDispatchInfo[]> PalletDispatchInfoAsync(Guid[] palletIds, CancellationToken ct)
+    {
+        if (palletIds.Length is < 1 or > 500 || palletIds.Contains(Guid.Empty))
+            throw FactoryException.Validation("Cần danh sách pallet hợp lệ (tối đa 500 pallet).");
+        var ids = palletIds.Distinct().ToArray();
+        return await source.Set<FactoryPallet>().AsNoTracking().Where(p => ids.Contains(p.Id))
+            .Select(p => new PalletDispatchInfo(p.Id, p.DispatchNoteId, p.DispatchCode)).ToArrayAsync(ct);
     }
 
     public async Task<PalletManifest> ManifestAsync(string code, CancellationToken ct)
