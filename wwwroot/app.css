@@ -811,7 +811,7 @@ body.signed-in footer {
   margin-right: 24px;
 }
 body.signed-in main {
-  margin-top: 30px;
+  margin-top: 22px;
   margin-bottom: 30px;
   padding: 0;
   min-height: calc(100vh - 150px);
@@ -856,6 +856,51 @@ body.signed-in footer {
     margin-right: auto;
     padding-left: 14px;
     padding-right: 14px;
+  }
+}
+
+/* Breadcrumbs retained from the feature branch's portal navigation layout. */
+body.signed-in header {
+  padding: 14px 24px;
+}
+body.signed-in main {
+  margin-top: 22px;
+}
+.page-header {
+  margin-bottom: 24px;
+}
+.page-header .intro {
+  margin-bottom: 0;
+}
+.breadcrumbs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 20px;
+  margin-bottom: 10px;
+  color: #6a7e85;
+  font-size: 12px;
+}
+.breadcrumbs a {
+  color: #246e5b;
+  text-decoration: none;
+  font-weight: 600;
+}
+.breadcrumbs a:hover,
+.breadcrumbs a:focus-visible {
+  text-decoration: underline;
+  outline: none;
+}
+.breadcrumbs span[aria-current="page"] {
+  color: #58717c;
+  font-weight: 600;
+}
+@media (max-width: 800px) {
+  body.signed-in header {
+    padding: 12px 14px;
+  }
+  .page-header {
+    margin-bottom: 18px;
   }
 }
 input,
@@ -1181,7 +1226,7 @@ body.signed-in footer {
   margin-right: 24px;
 }
 body.signed-in main {
-  margin-top: 30px;
+  margin-top: 22px;
   margin-bottom: 30px;
   padding: 0;
   min-height: calc(100vh - 150px);
