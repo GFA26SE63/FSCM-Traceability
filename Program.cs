@@ -127,6 +127,7 @@ public sealed class Program
         app.MapGet("/production", () => Results.File(Path.Combine(app.Environment.WebRootPath, "index.html"), "text/html"));
         app.MapGet("/issuance", () => Results.File(Path.Combine(app.Environment.WebRootPath, "index.html"), "text/html"));
         app.MapGet("/traceability", () => Results.File(Path.Combine(app.Environment.WebRootPath, "index.html"), "text/html"));
+        app.MapGet("/master-data", () => Results.File(Path.Combine(app.Environment.WebRootPath, "index.html"), "text/html"));
         await app.RunAsync();
     }
 

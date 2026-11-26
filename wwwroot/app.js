@@ -1,7 +1,7 @@
 const $ = id => document.getElementById(id);
-const page = ({ '/': 'production', '/production': 'production', '/issuance': 'issuance', '/traceability': 'traceability' })[location.pathname] || 'production';
-const pageTitles = { production: 'Điều hành traceability', issuance: 'Phát hành đến kho', traceability: 'Truy xuất nguồn gốc' };
-let batches = [], warehouses = [], catalogProducts = [], standards = { packagingSpecs: [], lineRules: [] }, selected = '', busy = false, operation = null, batchView = null;
+const page = ({ '/': 'production', '/production': 'production', '/issuance': 'issuance', '/traceability': 'traceability', '/master-data': 'master-data' })[location.pathname] || 'production';
+const pageTitles = { production: 'Điều hành traceability', issuance: 'Phát hành đến kho', traceability: 'Truy xuất nguồn gốc', 'master-data': 'Cấu hình Master Data' };
+let batches = [], warehouses = [], catalogProducts = [], standards = { packagingSpecs: [], lineRules: [] }, ruleDraftIds = new Set(), selected = '', busy = false, operation = null, batchView = null;
 let readyPallets = [], selectedReadyPalletIds = new Set(), dispatchNotes = [];
 let currentIssuanceSubtab = 'ready-pallets';
 let mapping = { level: 'cartons', pallet: '', carton: '', search: '', page: 1, pageSize: 50 };
@@ -15,9 +15,9 @@ const dispatchStatusMap = {
 function el(tag, text, className) { const e = document.createElement(tag); if (text != null) e.textContent = text; if (className) e.className = className; return e; }
 function notice(text, error = false) { for (const id of ['notice', 'batch-notice']) { const n = $(id); if (n) { n.textContent = text; n.className = error ? 'error' : ''; } } }
 function showPage() {
-  for (const [id, owner] of Object.entries({ 'production-overview': 'production', production: 'production', issuance: 'issuance', traceability: 'traceability' }))
+  for (const [id, owner] of Object.entries({ 'production-overview': 'production', production: 'production', issuance: 'issuance', traceability: 'traceability', 'master-data': 'master-data' }))
     if ($(id)) $(id).hidden = owner !== page;
-  for (const [id, owner] of Object.entries({ 'nav-production': 'production', 'nav-issuance': 'issuance', 'nav-traceability': 'traceability' }))
+  for (const [id, owner] of Object.entries({ 'nav-production': 'production', 'nav-issuance': 'issuance', 'nav-traceability': 'traceability', 'nav-master-data': 'master-data' }))
     if ($(id)) $(id).setAttribute('aria-current', owner === page ? 'page' : 'false');
   if ($('breadcrumb-current')) $('breadcrumb-current').textContent = pageTitles[page];
   if (page === 'issuance') setIssuanceSubtab(currentIssuanceSubtab);
@@ -513,15 +513,24 @@ function applyPackagingSpecForSelectedSku() {
   total();
 }
 
+function syncRuleDraftFromStandards() {
+  const line = $('rule-line')?.value || 'A';
+  ruleDraftIds = new Set(standards.lineRules.filter(r => r.productionLine === line).map(r => r.productId));
+}
+
 function renderRuleCheckboxesForLine() {
   if (!$('rule-skus-list')) return;
-  const line = $('rule-line')?.value || 'A';
-  const assigned = new Set(standards.lineRules.filter(r => r.productionLine === line).map(r => r.productId));
-  const published = catalogProducts.filter(p => p.status === 'Published');
-  if (!published.length) { $('rule-skus-list').replaceChildren(el('span', 'Chưa có SKU đang phát hành.', 'muted')); return; }
+  const term = ($('rule-sku-search')?.value || '').trim().toLowerCase();
+  const published = catalogProducts.filter(p => p.status === 'Published')
+    .filter(p => !term || p.sku.toLowerCase().includes(term) || p.name.toLowerCase().includes(term));
+  if (!published.length) { $('rule-skus-list').replaceChildren(el('span', 'Không có SKU phù hợp.', 'muted')); return; }
   $('rule-skus-list').replaceChildren(...published.map(p => {
     const label = el('label', null, 'rule-sku-item');
-    const cb = el('input'); cb.type = 'checkbox'; cb.value = p.id; cb.checked = assigned.has(p.id);
+    const cb = el('input');
+    cb.type = 'checkbox';
+    cb.value = p.id;
+    cb.checked = ruleDraftIds.has(p.id);
+    cb.onchange = () => { if (cb.checked) ruleDraftIds.add(p.id); else ruleDraftIds.delete(p.id); };
     label.append(cb, el('span', `${p.sku} · ${p.name}`));
     return label;
   }));
@@ -551,11 +560,15 @@ function renderStandardsDialog() {
       return [code(s.sku), s.productName, s.cartonsPerPallet, s.unitsPerCarton, actions];
     })));
   }
+  syncRuleDraftFromStandards();
   renderRuleCheckboxesForLine();
   if ($('line-rules-summary')) {
-    $('line-rules-summary').replaceChildren(table(['Line', 'SKU được phép sản xuất'], ['A', 'B', 'C', 'D'].map(line => {
+    $('line-rules-summary').replaceChildren(table(['Line', 'Số SKU', 'SKU được phép sản xuất', 'Thao tác'], ['A', 'B', 'C', 'D'].map(line => {
       const items = standards.lineRules.filter(r => r.productionLine === line);
-      return [`Line ${line}`, items.length ? items.map(r => r.sku).join(', ') : 'Chưa giới hạn (cho phép tất cả SKU)'];
+      const editBtn = el('button', 'Chọn chỉnh sửa', 'btn-sm');
+      editBtn.type = 'button';
+      editBtn.onclick = () => { if ($('rule-line')) $('rule-line').value = line; syncRuleDraftFromStandards(); renderRuleCheckboxesForLine(); };
+      return [`Line ${line}`, items.length ? `${items.length} SKU` : 'Tất cả', items.length ? items.map(r => r.sku).join(', ') : 'Chưa giới hạn (cho phép tất cả SKU)', editBtn];
     })));
   }
 }
@@ -597,9 +610,22 @@ if ($('production-date')) $('production-date').value = new Date().toLocaleDateSt
 if ($('production-form')) { $('production-form').oninput = total; total(); }
 if ($('production-line')) $('production-line').onchange = () => { renderSkuOptionsForLine(); applyPackagingSpecForSelectedSku(); };
 if ($('products')) $('products').onchange = () => applyPackagingSpecForSelectedSku();
-if ($('open-standards')) $('open-standards').onclick = () => { renderStandardsDialog(); $('standards-dialog')?.showModal(); };
-if ($('close-standards')) $('close-standards').onclick = () => $('standards-dialog')?.close();
-if ($('rule-line')) $('rule-line').onchange = () => renderRuleCheckboxesForLine();
+if ($('rule-line')) $('rule-line').onchange = () => { syncRuleDraftFromStandards(); renderRuleCheckboxesForLine(); };
+if ($('rule-sku-search')) $('rule-sku-search').oninput = () => renderRuleCheckboxesForLine();
+if ($('btn-rule-select-all')) $('btn-rule-select-all').onclick = () => {
+  const term = ($('rule-sku-search')?.value || '').trim().toLowerCase();
+  catalogProducts.filter(p => p.status === 'Published')
+    .filter(p => !term || p.sku.toLowerCase().includes(term) || p.name.toLowerCase().includes(term))
+    .forEach(p => ruleDraftIds.add(p.id));
+  renderRuleCheckboxesForLine();
+};
+if ($('btn-rule-deselect-all')) $('btn-rule-deselect-all').onclick = () => {
+  const term = ($('rule-sku-search')?.value || '').trim().toLowerCase();
+  catalogProducts.filter(p => p.status === 'Published')
+    .filter(p => !term || p.sku.toLowerCase().includes(term) || p.name.toLowerCase().includes(term))
+    .forEach(p => ruleDraftIds.delete(p.id));
+  renderRuleCheckboxesForLine();
+};
 if ($('packaging-spec-form')) $('packaging-spec-form').onsubmit = e => {
   e.preventDefault();
   run(async () => {
@@ -616,13 +642,9 @@ if ($('line-sku-form')) $('line-sku-form').onsubmit = e => {
   e.preventDefault();
   run(async () => {
     const line = $('rule-line').value;
-    const productIds = ($('rule-skus-list').children || []).flatMap(l => l.children || []).filter(c => c.tagName === 'input' && c.checked).map(c => c.value);
-    const checked = typeof $('rule-skus-list').querySelectorAll === 'function'
-      ? [...$('rule-skus-list').querySelectorAll('input[type="checkbox"]:checked')].map(c => c.value)
-      : productIds;
-    await api('/api/standards/line-skus', 'POST', { productionLine: line, productIds: checked });
+    await api('/api/standards/line-skus', 'POST', { productionLine: line, productIds: [...ruleDraftIds] });
     await reloadStandards();
-    notice(`Đã cập nhật danh sách SKU cho Line ${line}.`);
+    notice(`Đã cập nhật ${ruleDraftIds.size} SKU cho Line ${line}.`);
   });
 };
 if ($('login-form')) $('login-form').onsubmit = e => { e.preventDefault(); run(async () => { const data = Object.fromEntries(new FormData(e.target)); const user = await api('/api/session/login', 'POST', data); e.target.reset(); signedIn(user); await loadCatalog(); await refresh(); await restoreBatchView(); notice(''); }); };

@@ -4,8 +4,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>Nhà máy · FSCM Traceability</title>
-    <link rel="stylesheet" href="/app.css?v=dispatch-transport-1" />
-    <script src="/app.js?v=dispatch-transport-1" defer></script>
+    <link rel="stylesheet" href="/app.css?v=master-data-1" />
+    <script src="/app.js?v=master-data-1" defer></script>
   </head>
   <body>
     <header>
@@ -24,6 +24,7 @@
         <a id="nav-production" href="/production"><span class="nav-index">01</span><span>Sản xuất &amp; đóng hàng</span></a>
         <a id="nav-issuance" href="/issuance"><span class="nav-index">02</span><span>Phát hành đến kho</span></a>
         <a id="nav-traceability" href="/traceability"><span class="nav-index">03</span><span>Truy xuất nguồn gốc</span></a>
+        <a id="nav-master-data" href="/master-data"><span class="nav-index">04</span><span>Cấu hình Master Data</span></a>
       </nav>
       <p class="sidebar-note">Quản lý mẻ, pallet và hành trình hàng hóa từ nhà máy đến kho.</p>
     </aside>
@@ -80,10 +81,7 @@
               <span class="eyebrow">01 · SẢN XUẤT & ĐÓNG HÀNG</span>
               <h2>Tạo mẻ sản xuất</h2>
             </div>
-            <div class="row-actions">
-              <button type="button" id="open-standards" class="btn-sm">Cấu hình quy chuẩn</button>
-              <span class="pill">Một SKU / batch / pallet</span>
-            </div>
+            <span class="pill">Một SKU / batch / pallet</span>
           </div>
           <form id="production-form">
             <div class="fields">
@@ -288,39 +286,6 @@
             <button type="button" id="confirm-ok" class="primary">Xác nhận</button>
           </div>
         </dialog>
-        <dialog id="standards-dialog" aria-labelledby="standards-title">
-          <div class="dialog-header">
-            <div>
-              <span class="eyebrow">QUY CHUẨN NHÀ MÁY</span>
-              <h2 id="standards-title">Cấu hình Line – SKU &amp; Đóng gói</h2>
-            </div>
-            <button type="button" id="close-standards">Đóng</button>
-          </div>
-          <section class="mapping-section">
-            <h3>1. Quy chuẩn đóng gói theo SKU</h3>
-            <p class="muted">Tự động điền và khóa số carton/pallet và sản phẩm/carton khi chọn SKU tạo mẻ.</p>
-            <form id="packaging-spec-form" class="standards-form">
-              <label class="wide">SKU<select id="spec-product" required><option value="">Chọn SKU</option></select></label>
-              <label>Carton / pallet<input id="spec-cartons" type="number" min="1" max="100" step="1" value="10" required /></label>
-              <label>Sản phẩm / carton<input id="spec-units" type="number" min="1" max="1000" step="1" value="12" required /></label>
-              <button class="primary">Lưu quy chuẩn SKU</button>
-            </form>
-            <div id="packaging-specs-table" class="table-wrap"></div>
-          </section>
-          <section class="mapping-section">
-            <h3>2. Quy chuẩn Line – SKU</h3>
-            <p class="muted">Chọn danh sách SKU được phép sản xuất trên từng line. Line chưa cấu hình sẽ hiển thị tất cả SKU.</p>
-            <form id="line-sku-form" class="standards-form">
-              <label>Line sản xuất<select id="rule-line"><option>A</option><option>B</option><option>C</option><option>D</option></select></label>
-              <div class="wide">
-                <div class="muted">Danh sách SKU được phép chạy trên line</div>
-                <div id="rule-skus-list" class="rule-skus-list"></div>
-              </div>
-              <button class="primary">Lưu SKU cho Line</button>
-            </form>
-            <div id="line-rules-summary" class="table-wrap"></div>
-          </section>
-        </dialog>
         <section id="traceability" class="panel workflow-section">
           <span class="eyebrow">03 · TRUY XUẤT NGUỒN GỐC</span>
           <h2>Tra cứu mã</h2>
@@ -334,6 +299,49 @@
             ><button>Tra cứu</button>
           </form>
           <div id="trace-result"></div>
+        </section>
+        <section id="master-data" class="panel workflow-section">
+          <div class="section-title">
+            <div>
+              <span class="eyebrow">04 · CẤU HÌNH MASTER DATA</span>
+              <h2>Quy chuẩn Line – SKU &amp; Đóng gói</h2>
+            </div>
+            <span class="pill">Áp dụng tự động khi tạo mẻ</span>
+          </div>
+
+          <div class="master-block">
+            <h3>1. Quy chuẩn Line – SKU (Dây chuyền sản xuất)</h3>
+            <p class="muted">Chọn dây chuyền (Line A, B, C, D) và tick các SKU được phép sản xuất trên line đó. Line chưa cấu hình sẽ hiển thị tất cả SKU.</p>
+            <form id="line-sku-form" class="master-line-form">
+              <div class="master-line-toolbar">
+                <label>Line sản xuất
+                  <select id="rule-line"><option>A</option><option>B</option><option>C</option><option>D</option></select>
+                </label>
+                <label>Tìm nhanh SKU
+                  <input id="rule-sku-search" placeholder="Nhập mã SKU hoặc tên sản phẩm..." autocomplete="off" />
+                </label>
+                <div class="master-line-actions">
+                  <button type="button" id="btn-rule-select-all" class="btn-sm">Chọn tất cả</button>
+                  <button type="button" id="btn-rule-deselect-all" class="btn-sm">Bỏ chọn</button>
+                  <button class="primary">Lưu SKU cho Line</button>
+                </div>
+              </div>
+              <div id="rule-skus-list" class="rule-skus-list"></div>
+            </form>
+            <div id="line-rules-summary" class="table-wrap"></div>
+          </div>
+
+          <div class="master-block">
+            <h3>2. Quy chuẩn đóng gói theo SKU</h3>
+            <p class="muted">Khai báo số lượng chuẩn để hệ thống tự động điền và khóa khi tạo mẻ sản xuất.</p>
+            <form id="packaging-spec-form" class="standards-form">
+              <label class="wide">SKU<select id="spec-product" required><option value="">Chọn SKU</option></select></label>
+              <label>Carton / pallet<input id="spec-cartons" type="number" min="1" max="100" step="1" value="10" required /></label>
+              <label>Sản phẩm / carton<input id="spec-units" type="number" min="1" max="1000" step="1" value="12" required /></label>
+              <button class="primary">Lưu quy chuẩn SKU</button>
+            </form>
+            <div id="packaging-specs-table" class="table-wrap"></div>
+          </div>
         </section>
       </div>
     </main>

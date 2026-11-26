@@ -936,34 +936,74 @@ body.signed-in main {
     margin-bottom: 18px;
   }
 }
+.master-block {
+  margin-top: 24px;
+  padding-top: 22px;
+  border-top: 1px solid #e4ecee;
+}
+.master-block:first-of-type {
+  margin-top: 10px;
+  padding-top: 0;
+  border-top: 0;
+}
+.master-line-form {
+  display: grid;
+  gap: 14px;
+  margin-bottom: 18px;
+}
+.master-line-toolbar {
+  display: grid;
+  grid-template-columns: 180px minmax(220px, 1fr) auto;
+  gap: 12px;
+  align-items: end;
+}
+.master-line-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
 .standards-form {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
   gap: 12px;
   align-items: end;
-  margin-bottom: 14px;
+  margin-bottom: 16px;
 }
 .standards-form .wide {
   grid-column: span 2;
 }
 .rule-skus-list {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 8px;
-  max-height: 180px;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 10px;
+  max-height: 280px;
   overflow: auto;
-  padding: 10px;
+  padding: 12px;
   border: 1px solid #d5e1e3;
   border-radius: 8px;
   background: #f8fbfb;
-  margin-top: 6px;
 }
 .rule-sku-item {
   display: flex;
+  flex-direction: row;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
+  padding: 9px 12px;
+  border: 1px solid #dfeaec;
+  border-radius: 6px;
+  background: #fff;
   font-size: 13px;
+  font-weight: 500;
   cursor: pointer;
+}
+.rule-sku-item input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  min-width: 16px;
+  padding: 0;
+  margin: 0;
+  flex: 0 0 auto;
+  accent-color: #087d69;
 }
 input[readonly] {
   background: #eef4f5;
@@ -1339,34 +1379,74 @@ body.signed-in footer {
     padding-right: 14px;
   }
 }
+.master-block {
+  margin-top: 24px;
+  padding-top: 22px;
+  border-top: 1px solid #e4ecee;
+}
+.master-block:first-of-type {
+  margin-top: 10px;
+  padding-top: 0;
+  border-top: 0;
+}
+.master-line-form {
+  display: grid;
+  gap: 14px;
+  margin-bottom: 18px;
+}
+.master-line-toolbar {
+  display: grid;
+  grid-template-columns: 180px minmax(220px, 1fr) auto;
+  gap: 12px;
+  align-items: end;
+}
+.master-line-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
 .standards-form {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
   gap: 12px;
   align-items: end;
-  margin-bottom: 14px;
+  margin-bottom: 16px;
 }
 .standards-form .wide {
   grid-column: span 2;
 }
 .rule-skus-list {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 8px;
-  max-height: 180px;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 10px;
+  max-height: 280px;
   overflow: auto;
-  padding: 10px;
+  padding: 12px;
   border: 1px solid #d5e1e3;
   border-radius: 8px;
   background: #f8fbfb;
-  margin-top: 6px;
 }
 .rule-sku-item {
   display: flex;
+  flex-direction: row;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
+  padding: 9px 12px;
+  border: 1px solid #dfeaec;
+  border-radius: 6px;
+  background: #fff;
   font-size: 13px;
+  font-weight: 500;
   cursor: pointer;
+}
+.rule-sku-item input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  min-width: 16px;
+  padding: 0;
+  margin: 0;
+  flex: 0 0 auto;
+  accent-color: #087d69;
 }
 input[readonly] {
   background: #eef4f5;

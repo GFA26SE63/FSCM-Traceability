@@ -44,10 +44,11 @@ test('application shell uses the FSCM logo and exposes three sidebar navigation 
   assert.equal((html.match(/src="\/fscm-logo\.png"/g) ?? []).length, 3);
   assert.match(html, /id="login" class="panel login" hidden/);
   assert.match(html, /id="session-loading" class="panel login session-loading"/);
-  for (const id of ['production', 'issuance', 'traceability']) assert.match(html, new RegExp(`id="${id}"`));
+  for (const id of ['production', 'issuance', 'traceability', 'master-data']) assert.match(html, new RegExp(`id="${id}"`));
+  assert.match(html, /href="\/master-data"><span class="nav-index">04<\/span><span>Cấu hình Master Data<\/span>/);
   assert.ok(fs.existsSync(path.join(__dirname, '../wwwroot/fscm-logo.png')));
   const program = fs.readFileSync(path.join(__dirname, '../Program.cs'), 'utf8');
-  for (const route of ['/production', '/issuance', '/traceability']) assert.ok(program.includes(`app.MapGet("${route}"`));
+  for (const route of ['/production', '/issuance', '/traceability', '/master-data']) assert.ok(program.includes(`app.MapGet("${route}"`));
 });
 async function setup(hash = '', pathname = '/') {
   const html = fs.readFileSync(path.join(__dirname, '../wwwroot/index.html'), 'utf8');
