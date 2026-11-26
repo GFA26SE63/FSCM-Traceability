@@ -946,22 +946,6 @@ body.signed-in main {
   padding-top: 0;
   border-top: 0;
 }
-.master-line-form {
-  display: grid;
-  gap: 14px;
-  margin-bottom: 18px;
-}
-.master-line-toolbar {
-  display: grid;
-  grid-template-columns: 180px minmax(220px, 1fr) auto;
-  gap: 12px;
-  align-items: end;
-}
-.master-line-actions {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
 .standards-form {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
@@ -972,38 +956,33 @@ body.signed-in main {
 .standards-form .wide {
   grid-column: span 2;
 }
-.rule-skus-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 10px;
-  max-height: 280px;
-  overflow: auto;
-  padding: 12px;
-  border: 1px solid #d5e1e3;
-  border-radius: 8px;
-  background: #f8fbfb;
+.line-sku-dialog {
+  width: min(860px, calc(100vw - 32px));
 }
-.rule-sku-item {
+.line-dialog-toolbar {
   display: flex;
-  flex-direction: row;
-  align-items: center;
   gap: 10px;
-  padding: 9px 12px;
-  border: 1px solid #dfeaec;
-  border-radius: 6px;
-  background: #fff;
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
+  align-items: center;
+  margin-bottom: 10px;
 }
-.rule-sku-item input[type="checkbox"] {
+.line-dialog-toolbar input {
+  flex: 1;
+}
+.rule-skus-table-wrap {
+  max-height: 50vh;
+  overflow: auto;
+  border: 1px solid #e1ebed;
+  border-radius: 8px;
+  margin-bottom: 16px;
+}
+.table-checkbox {
   width: 16px;
   height: 16px;
   min-width: 16px;
   padding: 0;
   margin: 0;
-  flex: 0 0 auto;
   accent-color: #087d69;
+  cursor: pointer;
 }
 input[readonly] {
   background: #eef4f5;
@@ -1389,22 +1368,6 @@ body.signed-in footer {
   padding-top: 0;
   border-top: 0;
 }
-.master-line-form {
-  display: grid;
-  gap: 14px;
-  margin-bottom: 18px;
-}
-.master-line-toolbar {
-  display: grid;
-  grid-template-columns: 180px minmax(220px, 1fr) auto;
-  gap: 12px;
-  align-items: end;
-}
-.master-line-actions {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
 .standards-form {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
@@ -1415,38 +1378,33 @@ body.signed-in footer {
 .standards-form .wide {
   grid-column: span 2;
 }
-.rule-skus-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 10px;
-  max-height: 280px;
-  overflow: auto;
-  padding: 12px;
-  border: 1px solid #d5e1e3;
-  border-radius: 8px;
-  background: #f8fbfb;
+.line-sku-dialog {
+  width: min(860px, calc(100vw - 32px));
 }
-.rule-sku-item {
+.line-dialog-toolbar {
   display: flex;
-  flex-direction: row;
-  align-items: center;
   gap: 10px;
-  padding: 9px 12px;
-  border: 1px solid #dfeaec;
-  border-radius: 6px;
-  background: #fff;
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
+  align-items: center;
+  margin-bottom: 10px;
 }
-.rule-sku-item input[type="checkbox"] {
+.line-dialog-toolbar input {
+  flex: 1;
+}
+.rule-skus-table-wrap {
+  max-height: 50vh;
+  overflow: auto;
+  border: 1px solid #e1ebed;
+  border-radius: 8px;
+  margin-bottom: 16px;
+}
+.table-checkbox {
   width: 16px;
   height: 16px;
   min-width: 16px;
   padding: 0;
   margin: 0;
-  flex: 0 0 auto;
   accent-color: #087d69;
+  cursor: pointer;
 }
 input[readonly] {
   background: #eef4f5;

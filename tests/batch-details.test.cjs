@@ -339,4 +339,14 @@ test('line-SKU filtering and packaging spec auto-fill work on production form', 
   app.run('applyPackagingSpecForSelectedSku();');
   assert.equal(app.nodes['cartons-per-pallet'].readOnly, false);
   assert.equal(app.nodes['units-per-carton'].readOnly, false);
+
+  app.run(`openLineSkuDialog('A');`);
+  assert.equal(app.nodes['line-sku-dialog'].open, true);
+  assert.match(app.nodes['line-sku-dialog-title'].textContent, /Line A/);
+  assert.match(app.nodes['rule-skus-table'].textContent, /SKU001/);
+  assert.match(app.nodes['rule-skus-table'].textContent, /SKU002/);
+  app.nodes['rule-sku-search'].value = 'Trà xanh';
+  app.run('renderRuleSkusTable();');
+  assert.doesNotMatch(app.nodes['rule-skus-table'].textContent, /SKU001/);
+  assert.match(app.nodes['rule-skus-table'].textContent, /SKU002/);
 });

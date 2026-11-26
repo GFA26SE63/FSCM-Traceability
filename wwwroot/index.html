@@ -4,8 +4,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>Nhà máy · FSCM Traceability</title>
-    <link rel="stylesheet" href="/app.css?v=master-data-1" />
-    <script src="/app.js?v=master-data-1" defer></script>
+    <link rel="stylesheet" href="/app.css?v=master-data-2" />
+    <script src="/app.js?v=master-data-2" defer></script>
   </head>
   <body>
     <header>
@@ -310,24 +310,8 @@
           </div>
 
           <div class="master-block">
-            <h3>1. Quy chuẩn Line – SKU (Dây chuyền sản xuất)</h3>
-            <p class="muted">Chọn dây chuyền (Line A, B, C, D) và tick các SKU được phép sản xuất trên line đó. Line chưa cấu hình sẽ hiển thị tất cả SKU.</p>
-            <form id="line-sku-form" class="master-line-form">
-              <div class="master-line-toolbar">
-                <label>Line sản xuất
-                  <select id="rule-line"><option>A</option><option>B</option><option>C</option><option>D</option></select>
-                </label>
-                <label>Tìm nhanh SKU
-                  <input id="rule-sku-search" placeholder="Nhập mã SKU hoặc tên sản phẩm..." autocomplete="off" />
-                </label>
-                <div class="master-line-actions">
-                  <button type="button" id="btn-rule-select-all" class="btn-sm">Chọn tất cả</button>
-                  <button type="button" id="btn-rule-deselect-all" class="btn-sm">Bỏ chọn</button>
-                  <button class="primary">Lưu SKU cho Line</button>
-                </div>
-              </div>
-              <div id="rule-skus-list" class="rule-skus-list"></div>
-            </form>
+            <h3>1. Danh sách Line sản xuất (Cấu hình Line – SKU)</h3>
+            <p class="muted">Nhấn &quot;Cấu hình SKU&quot; ở từng line để mở bảng chọn các SKU được phép sản xuất trên line đó. Line chưa cấu hình sẽ hiển thị tất cả SKU.</p>
             <div id="line-rules-summary" class="table-wrap"></div>
           </div>
 
@@ -343,6 +327,26 @@
             <div id="packaging-specs-table" class="table-wrap"></div>
           </div>
         </section>
+        <dialog id="line-sku-dialog" class="line-sku-dialog" aria-labelledby="line-sku-dialog-title">
+          <div class="dialog-header">
+            <div>
+              <span class="eyebrow">CẤU HÌNH LINE – SKU</span>
+              <h2 id="line-sku-dialog-title">Chọn SKU cho Line</h2>
+            </div>
+            <button type="button" id="close-line-sku-dialog">Đóng</button>
+          </div>
+          <div class="line-dialog-toolbar">
+            <input id="rule-sku-search" placeholder="Tìm kiếm mã SKU hoặc tên sản phẩm..." autocomplete="off" />
+            <button type="button" id="btn-rule-select-all" class="btn-sm">Chọn tất cả</button>
+            <button type="button" id="btn-rule-deselect-all" class="btn-sm">Bỏ chọn</button>
+          </div>
+          <p id="rule-selected-count" class="muted"></p>
+          <div id="rule-skus-table" class="table-wrap rule-skus-table-wrap"></div>
+          <div class="confirm-actions">
+            <button type="button" id="cancel-line-sku-dialog">Hủy</button>
+            <button type="button" id="btn-save-line-skus" class="primary">Add / Lưu SKU cho Line</button>
+          </div>
+        </dialog>
       </div>
     </main>
     <footer>
