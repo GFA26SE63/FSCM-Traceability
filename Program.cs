@@ -78,6 +78,13 @@ public sealed class Program
         admin.MapPost("/session/logout", async (HttpContext c) => { await c.SignOutAsync(); return Results.NoContent(); });
         admin.MapGet("/catalog/products", async (HttpContext c, IFscmGateway gateway, CancellationToken ct) => await gateway.ProductsAsync(await Token(c), ct));
         admin.MapGet("/catalog/warehouses", async (HttpContext c, IFscmGateway gateway, CancellationToken ct) => await gateway.WarehousesAsync(await Token(c), ct));
+        admin.MapGet("/standards", (ProductionService service, CancellationToken ct) => service.GetStandardsAsync(ct));
+        admin.MapPost("/standards/packaging", async (UpsertPackagingSpecRequest request, HttpContext c, ProductionService service, CancellationToken ct) =>
+            await service.UpsertPackagingSpecAsync(request, Guid.Parse(c.User.FindFirstValue(ClaimTypes.NameIdentifier)!), await Token(c), ct));
+        admin.MapDelete("/standards/packaging/{productId:guid}", async (Guid productId, ProductionService service, CancellationToken ct) =>
+            { await service.DeletePackagingSpecAsync(productId, ct); return Results.NoContent(); });
+        admin.MapPost("/standards/line-skus", async (SetLineSkusRequest request, HttpContext c, ProductionService service, CancellationToken ct) =>
+            await service.SetLineSkusAsync(request, Guid.Parse(c.User.FindFirstValue(ClaimTypes.NameIdentifier)!), await Token(c), ct));
         admin.MapGet("/batches", (ProductionService service, CancellationToken ct) => service.ListAsync(ct));
         admin.MapGet("/batches/{id:guid}", (Guid id, ProductionService service, CancellationToken ct) => service.DetailAsync(id, ct));
         admin.MapGet("/batches/{id:guid}/mapping", (Guid id, ProductionService service, CancellationToken ct,

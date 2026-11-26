@@ -1,7 +1,7 @@
 const $ = id => document.getElementById(id);
 const page = ({ '/': 'production', '/production': 'production', '/issuance': 'issuance', '/traceability': 'traceability' })[location.pathname] || 'production';
 const pageTitles = { production: 'Điều hành traceability', issuance: 'Phát hành đến kho', traceability: 'Truy xuất nguồn gốc' };
-let batches = [], warehouses = [], selected = '', busy = false, operation = null, batchView = null;
+let batches = [], warehouses = [], catalogProducts = [], standards = { packagingSpecs: [], lineRules: [] }, selected = '', busy = false, operation = null, batchView = null;
 let readyPallets = [], selectedReadyPalletIds = new Set(), dispatchNotes = [];
 let currentIssuanceSubtab = 'ready-pallets';
 let mapping = { level: 'cartons', pallet: '', carton: '', search: '', page: 1, pageSize: 50 };
@@ -483,13 +483,102 @@ if ($('btn-create-dispatch')) $('btn-create-dispatch').onclick = async () => {
   });
 };
 
-async function loadCatalog() {
-  const products = await api('/api/catalog/products');
-  warehouses = await api('/api/catalog/warehouses');
-  if ($('products')) {
-    $('products').replaceChildren(new Option('Chọn SKU đang phát hành', ''));
-    products.filter(p => p.status === 'Published').forEach(p => $('products').append(new Option(p.sku + ' · ' + p.name, p.id)));
+function renderSkuOptionsForLine() {
+  if (!$('products')) return;
+  const line = $('production-line')?.value || 'A';
+  const current = $('products').value;
+  const lineProductIds = new Set(standards.lineRules.filter(r => r.productionLine === line).map(r => r.productId));
+  const published = catalogProducts.filter(p => p.status === 'Published');
+  const filtered = lineProductIds.size > 0 ? published.filter(p => lineProductIds.has(p.id)) : published;
+  const placeholder = lineProductIds.size > 0 ? `Chọn SKU (Line ${line} · ${filtered.length} SKU)` : 'Chọn SKU đang phát hành';
+  $('products').replaceChildren(new Option(placeholder, ''));
+  filtered.forEach(p => $('products').append(new Option(p.sku + ' · ' + p.name, p.id)));
+  $('products').value = filtered.some(p => p.id === current) ? current : '';
+}
+
+function applyPackagingSpecForSelectedSku() {
+  const productId = $('products')?.value || '';
+  const spec = standards.packagingSpecs.find(s => s.productId === productId);
+  const cartonsInput = $('cartons-per-pallet');
+  const unitsInput = $('units-per-carton');
+  if (spec) {
+    if (cartonsInput) { cartonsInput.value = spec.cartonsPerPallet; cartonsInput.readOnly = true; }
+    if (unitsInput) { unitsInput.value = spec.unitsPerCarton; unitsInput.readOnly = true; }
+    if ($('packaging-spec-hint')) $('packaging-spec-hint').textContent = `Theo quy chuẩn SKU: ${spec.cartonsPerPallet} carton/pallet · ${spec.unitsPerCarton} sản phẩm/carton`;
+  } else {
+    if (cartonsInput) cartonsInput.readOnly = false;
+    if (unitsInput) unitsInput.readOnly = false;
+    if ($('packaging-spec-hint')) $('packaging-spec-hint').textContent = productId ? 'SKU chưa có quy chuẩn đóng gói — đang nhập tay.' : '';
   }
+  total();
+}
+
+function renderRuleCheckboxesForLine() {
+  if (!$('rule-skus-list')) return;
+  const line = $('rule-line')?.value || 'A';
+  const assigned = new Set(standards.lineRules.filter(r => r.productionLine === line).map(r => r.productId));
+  const published = catalogProducts.filter(p => p.status === 'Published');
+  if (!published.length) { $('rule-skus-list').replaceChildren(el('span', 'Chưa có SKU đang phát hành.', 'muted')); return; }
+  $('rule-skus-list').replaceChildren(...published.map(p => {
+    const label = el('label', null, 'rule-sku-item');
+    const cb = el('input'); cb.type = 'checkbox'; cb.value = p.id; cb.checked = assigned.has(p.id);
+    label.append(cb, el('span', `${p.sku} · ${p.name}`));
+    return label;
+  }));
+}
+
+function renderStandardsDialog() {
+  if ($('spec-product')) {
+    const cur = $('spec-product').value;
+    $('spec-product').replaceChildren(new Option('Chọn SKU đang phát hành', ''));
+    catalogProducts.filter(p => p.status === 'Published').forEach(p => $('spec-product').append(new Option(`${p.sku} · ${p.name}`, p.id)));
+    $('spec-product').value = cur;
+  }
+  if ($('packaging-specs-table')) {
+    $('packaging-specs-table').replaceChildren(table(['SKU', 'Tên sản phẩm', 'Carton / pallet', 'SP / carton', 'Thao tác'], standards.packagingSpecs.map(s => {
+      const actions = el('div', null, 'row-actions');
+      const editBtn = el('button', 'Sửa', 'btn-sm');
+      editBtn.type = 'button';
+      editBtn.onclick = () => { $('spec-product').value = s.productId; $('spec-cartons').value = s.cartonsPerPallet; $('spec-units').value = s.unitsPerCarton; };
+      const delBtn = el('button', 'Xóa', 'btn-sm');
+      delBtn.type = 'button';
+      delBtn.onclick = () => run(async () => {
+        await api(`/api/standards/packaging/${s.productId}`, 'DELETE');
+        await reloadStandards();
+        notice(`Đã xóa quy chuẩn đóng gói của ${s.sku}.`);
+      });
+      actions.append(editBtn, delBtn);
+      return [code(s.sku), s.productName, s.cartonsPerPallet, s.unitsPerCarton, actions];
+    })));
+  }
+  renderRuleCheckboxesForLine();
+  if ($('line-rules-summary')) {
+    $('line-rules-summary').replaceChildren(table(['Line', 'SKU được phép sản xuất'], ['A', 'B', 'C', 'D'].map(line => {
+      const items = standards.lineRules.filter(r => r.productionLine === line);
+      return [`Line ${line}`, items.length ? items.map(r => r.sku).join(', ') : 'Chưa giới hạn (cho phép tất cả SKU)'];
+    })));
+  }
+}
+
+async function reloadStandards() {
+  standards = await api('/api/standards');
+  renderSkuOptionsForLine();
+  applyPackagingSpecForSelectedSku();
+  renderStandardsDialog();
+}
+
+async function loadCatalog() {
+  const [products, whs, std] = await Promise.all([
+    api('/api/catalog/products'),
+    api('/api/catalog/warehouses'),
+    api('/api/standards').catch(() => ({ packagingSpecs: [], lineRules: [] }))
+  ]);
+  catalogProducts = products;
+  warehouses = whs;
+  standards = std || { packagingSpecs: [], lineRules: [] };
+  renderSkuOptionsForLine();
+  applyPackagingSpecForSelectedSku();
+  renderStandardsDialog();
   if ($('ready-destination-warehouse')) {
     const cur = $('ready-destination-warehouse').value;
     $('ready-destination-warehouse').replaceChildren(new Option('-- Chọn kho đích tiếp nhận --', ''));
@@ -506,6 +595,36 @@ function total() {
 }
 if ($('production-date')) $('production-date').value = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Ho_Chi_Minh' });
 if ($('production-form')) { $('production-form').oninput = total; total(); }
+if ($('production-line')) $('production-line').onchange = () => { renderSkuOptionsForLine(); applyPackagingSpecForSelectedSku(); };
+if ($('products')) $('products').onchange = () => applyPackagingSpecForSelectedSku();
+if ($('open-standards')) $('open-standards').onclick = () => { renderStandardsDialog(); $('standards-dialog')?.showModal(); };
+if ($('close-standards')) $('close-standards').onclick = () => $('standards-dialog')?.close();
+if ($('rule-line')) $('rule-line').onchange = () => renderRuleCheckboxesForLine();
+if ($('packaging-spec-form')) $('packaging-spec-form').onsubmit = e => {
+  e.preventDefault();
+  run(async () => {
+    await api('/api/standards/packaging', 'POST', {
+      productId: $('spec-product').value,
+      cartonsPerPallet: Number($('spec-cartons').value),
+      unitsPerCarton: Number($('spec-units').value)
+    });
+    await reloadStandards();
+    notice('Đã lưu quy chuẩn đóng gói cho SKU.');
+  });
+};
+if ($('line-sku-form')) $('line-sku-form').onsubmit = e => {
+  e.preventDefault();
+  run(async () => {
+    const line = $('rule-line').value;
+    const productIds = ($('rule-skus-list').children || []).flatMap(l => l.children || []).filter(c => c.tagName === 'input' && c.checked).map(c => c.value);
+    const checked = typeof $('rule-skus-list').querySelectorAll === 'function'
+      ? [...$('rule-skus-list').querySelectorAll('input[type="checkbox"]:checked')].map(c => c.value)
+      : productIds;
+    await api('/api/standards/line-skus', 'POST', { productionLine: line, productIds: checked });
+    await reloadStandards();
+    notice(`Đã cập nhật danh sách SKU cho Line ${line}.`);
+  });
+};
 if ($('login-form')) $('login-form').onsubmit = e => { e.preventDefault(); run(async () => { const data = Object.fromEntries(new FormData(e.target)); const user = await api('/api/session/login', 'POST', data); e.target.reset(); signedIn(user); await loadCatalog(); await refresh(); await restoreBatchView(); notice(''); }); };
 if ($('production-form')) $('production-form').onsubmit = e => { e.preventDefault(); run(async () => {
   const data = Object.fromEntries(new FormData(e.target)); ['palletCount', 'cartonsPerPallet', 'unitsPerCarton'].forEach(k => data[k] = Number(data[k]));

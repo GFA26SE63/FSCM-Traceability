@@ -306,3 +306,36 @@ test('dispatch-note page also requires vehicle and driver before the confirm pop
   assert.match(html, /id="ready-vehicle-number"[^>]*required/);
   assert.match(html, /id="ready-driver-name"[^>]*required/);
 });
+
+test('line-SKU filtering and packaging spec auto-fill work on production form', async () => {
+  const app = await setup('', '/production');
+  app.run(`
+    catalogProducts = [
+      { id: 'sku-1', sku: 'SKU001', name: 'Nước suối 500ml', status: 'Published' },
+      { id: 'sku-2', sku: 'SKU002', name: 'Trà xanh 330ml', status: 'Published' }
+    ];
+    standards = {
+      packagingSpecs: [{ productId: 'sku-1', sku: 'SKU001', productName: 'Nước suối 500ml', cartonsPerPallet: 40, unitsPerCarton: 24 }],
+      lineRules: [{ productionLine: 'A', productId: 'sku-1', sku: 'SKU001', productName: 'Nước suối 500ml' }]
+    };
+  `);
+  app.nodes['production-line'].value = 'A';
+  app.run('renderSkuOptionsForLine();');
+  assert.deepEqual(app.nodes.products.children.map(o => o.value), ['', 'sku-1']);
+
+  app.nodes.products.value = 'sku-1';
+  app.run('applyPackagingSpecForSelectedSku();');
+  assert.equal(app.nodes['cartons-per-pallet'].value, 40);
+  assert.equal(app.nodes['units-per-carton'].value, 24);
+  assert.equal(app.nodes['cartons-per-pallet'].readOnly, true);
+  assert.equal(app.nodes['units-per-carton'].readOnly, true);
+  assert.match(app.nodes['packaging-spec-hint'].textContent, /40 carton\/pallet/);
+
+  app.nodes['production-line'].value = 'B';
+  app.run('renderSkuOptionsForLine(); applyPackagingSpecForSelectedSku();');
+  assert.deepEqual(app.nodes.products.children.map(o => o.value), ['', 'sku-1', 'sku-2']);
+  app.nodes.products.value = 'sku-2';
+  app.run('applyPackagingSpecForSelectedSku();');
+  assert.equal(app.nodes['cartons-per-pallet'].readOnly, false);
+  assert.equal(app.nodes['units-per-carton'].readOnly, false);
+});

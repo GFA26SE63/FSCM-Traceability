@@ -80,7 +80,10 @@
               <span class="eyebrow">01 · SẢN XUẤT & ĐÓNG HÀNG</span>
               <h2>Tạo mẻ sản xuất</h2>
             </div>
-            <span class="pill">Một SKU / batch / pallet</span>
+            <div class="row-actions">
+              <button type="button" id="open-standards" class="btn-sm">Cấu hình quy chuẩn</button>
+              <span class="pill">Một SKU / batch / pallet</span>
+            </div>
           </div>
           <form id="production-form">
             <div class="fields">
@@ -93,7 +96,7 @@
                   required
               /></label>
               <label
-                >Line sản xuất<select name="productionLine">
+                >Line sản xuất<select name="productionLine" id="production-line">
                   <option>A</option>
                   <option>B</option>
                   <option>C</option>
@@ -127,6 +130,7 @@
               <label
                 >Carton / pallet<input
                   name="cartonsPerPallet"
+                  id="cartons-per-pallet"
                   type="number"
                   value="10"
                   min="1"
@@ -137,6 +141,7 @@
               <label
                 >Sản phẩm / carton<input
                   name="unitsPerCarton"
+                  id="units-per-carton"
                   type="number"
                   value="12"
                   min="1"
@@ -146,8 +151,11 @@
               /></label>
             </div>
             <div class="form-footer">
-              <span id="production-total"></span
-              ><button class="primary">Sản xuất & cấp mã</button>
+              <div>
+                <span id="production-total"></span>
+                <div id="packaging-spec-hint" class="muted"></div>
+              </div>
+              <button class="primary">Sản xuất & cấp mã</button>
             </div>
           </form>
         </section>
@@ -279,6 +287,39 @@
             <button type="button" id="confirm-cancel">Hủy</button>
             <button type="button" id="confirm-ok" class="primary">Xác nhận</button>
           </div>
+        </dialog>
+        <dialog id="standards-dialog" aria-labelledby="standards-title">
+          <div class="dialog-header">
+            <div>
+              <span class="eyebrow">QUY CHUẨN NHÀ MÁY</span>
+              <h2 id="standards-title">Cấu hình Line – SKU &amp; Đóng gói</h2>
+            </div>
+            <button type="button" id="close-standards">Đóng</button>
+          </div>
+          <section class="mapping-section">
+            <h3>1. Quy chuẩn đóng gói theo SKU</h3>
+            <p class="muted">Tự động điền và khóa số carton/pallet và sản phẩm/carton khi chọn SKU tạo mẻ.</p>
+            <form id="packaging-spec-form" class="standards-form">
+              <label class="wide">SKU<select id="spec-product" required><option value="">Chọn SKU</option></select></label>
+              <label>Carton / pallet<input id="spec-cartons" type="number" min="1" max="100" step="1" value="10" required /></label>
+              <label>Sản phẩm / carton<input id="spec-units" type="number" min="1" max="1000" step="1" value="12" required /></label>
+              <button class="primary">Lưu quy chuẩn SKU</button>
+            </form>
+            <div id="packaging-specs-table" class="table-wrap"></div>
+          </section>
+          <section class="mapping-section">
+            <h3>2. Quy chuẩn Line – SKU</h3>
+            <p class="muted">Chọn danh sách SKU được phép sản xuất trên từng line. Line chưa cấu hình sẽ hiển thị tất cả SKU.</p>
+            <form id="line-sku-form" class="standards-form">
+              <label>Line sản xuất<select id="rule-line"><option>A</option><option>B</option><option>C</option><option>D</option></select></label>
+              <div class="wide">
+                <div class="muted">Danh sách SKU được phép chạy trên line</div>
+                <div id="rule-skus-list" class="rule-skus-list"></div>
+              </div>
+              <button class="primary">Lưu SKU cho Line</button>
+            </form>
+            <div id="line-rules-summary" class="table-wrap"></div>
+          </section>
         </dialog>
         <section id="traceability" class="panel workflow-section">
           <span class="eyebrow">03 · TRUY XUẤT NGUỒN GỐC</span>

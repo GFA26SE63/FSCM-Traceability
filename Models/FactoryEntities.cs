@@ -71,3 +71,25 @@ public sealed class FactoryProductUnit
     public int Sequence { get; set; }
 }
 
+public sealed class FactorySkuPackagingSpec
+{
+    public Guid ProductId { get; set; }
+    public string Sku { get; set; } = "";
+    public string ProductName { get; set; } = "";
+    public int UnitsPerCarton { get; set; }
+    public int CartonsPerPallet { get; set; }
+    public Guid UpdatedByUserId { get; set; }
+    public DateTimeOffset UpdatedAt { get; set; }
+}
+
+public sealed class FactoryLineSkuRule
+{
+    public Guid Id { get; set; }
+    public string ProductionLine { get; set; } = "";
+    public Guid ProductId { get; set; }
+    public string Sku { get; set; } = "";
+    public string ProductName { get; set; } = "";
+    public Guid CreatedByUserId { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
+}
+

@@ -120,6 +120,94 @@ public sealed class ProductionService(FactoryDbContext source, IFscmGateway fscm
         return new(items, page, pageSize, count);
     }
 
+    public async Task<ProductionStandardsResponse> GetStandardsAsync(CancellationToken ct)
+    {
+        var specs = await source.Set<FactorySkuPackagingSpec>().AsNoTracking().OrderBy(x => x.Sku).ToArrayAsync(ct);
+        var rules = await source.Set<FactoryLineSkuRule>().AsNoTracking().OrderBy(x => x.ProductionLine).ThenBy(x => x.Sku).ToArrayAsync(ct);
+        return new(specs, rules);
+    }
+
+    public async Task<FactorySkuPackagingSpec> UpsertPackagingSpecAsync(UpsertPackagingSpecRequest request, Guid actor, string accessToken, CancellationToken ct)
+    {
+        if (request.UnitsPerCarton is < 1 or > 1000 || request.CartonsPerPallet is < 1 or > 100)
+            throw FactoryException.Validation("Quy chuẩn đóng gói: 1–100 carton/pallet và 1–1.000 sản phẩm/carton.");
+        var product = await fscm.ProductAsync(request.ProductId, accessToken, ct);
+        if (product.Status != "Published")
+            throw FactoryException.Validation("Chỉ cấu hình quy chuẩn cho SKU đang phát hành.");
+        var now = clock.GetUtcNow();
+        var existing = await source.Set<FactorySkuPackagingSpec>().SingleOrDefaultAsync(x => x.ProductId == request.ProductId, ct);
+        if (existing is null)
+        {
+            existing = new FactorySkuPackagingSpec
+            {
+                ProductId = product.Id,
+                Sku = product.Sku,
+                ProductName = product.Name,
+                UnitsPerCarton = request.UnitsPerCarton,
+                CartonsPerPallet = request.CartonsPerPallet,
+                UpdatedByUserId = actor,
+                UpdatedAt = now
+            };
+            source.Add(existing);
+        }
+        else
+        {
+            existing.Sku = product.Sku;
+            existing.ProductName = product.Name;
+            existing.UnitsPerCarton = request.UnitsPerCarton;
+            existing.CartonsPerPallet = request.CartonsPerPallet;
+            existing.UpdatedByUserId = actor;
+            existing.UpdatedAt = now;
+        }
+        await source.SaveChangesAsync(ct);
+        return existing;
+    }
+
+    public async Task DeletePackagingSpecAsync(Guid productId, CancellationToken ct)
+    {
+        var existing = await source.Set<FactorySkuPackagingSpec>().SingleOrDefaultAsync(x => x.ProductId == productId, ct);
+        if (existing is not null)
+        {
+            source.Remove(existing);
+            await source.SaveChangesAsync(ct);
+        }
+    }
+
+    public async Task<FactoryLineSkuRule[]> SetLineSkusAsync(SetLineSkusRequest request, Guid actor, string accessToken, CancellationToken ct)
+    {
+        if (!new[] { "A", "B", "C", "D" }.Contains(request.ProductionLine))
+            throw FactoryException.Validation("Line sản xuất phải là A, B, C hoặc D.");
+        var productIds = (request.ProductIds ?? []).Distinct().ToArray();
+        var products = await fscm.ProductsAsync(accessToken, ct);
+        var byId = products.Where(p => p.Status == "Published").ToDictionary(p => p.Id);
+        foreach (var id in productIds)
+            if (!byId.ContainsKey(id))
+                throw FactoryException.Validation("Chỉ được gán SKU đang phát hành cho line.");
+        var now = clock.GetUtcNow();
+        return await AtomicResult(async () =>
+        {
+            var current = await source.Set<FactoryLineSkuRule>().Where(x => x.ProductionLine == request.ProductionLine).ToArrayAsync(ct);
+            source.RemoveRange(current);
+            var next = productIds.Select(id =>
+            {
+                var p = byId[id];
+                return new FactoryLineSkuRule
+                {
+                    Id = Guid.NewGuid(),
+                    ProductionLine = request.ProductionLine,
+                    ProductId = p.Id,
+                    Sku = p.Sku,
+                    ProductName = p.Name,
+                    CreatedByUserId = actor,
+                    CreatedAt = now
+                };
+            }).OrderBy(x => x.Sku).ToArray();
+            source.AddRange(next);
+            await source.SaveChangesAsync(ct);
+            return next;
+        }, ct);
+    }
+
     public async Task<Guid> SimulateAsync(SimulateProductionRequest data, string key, Guid actor, string accessToken, CancellationToken ct)
     {
         Validate(data, VietnamDate(clock.GetUtcNow()));
@@ -134,6 +222,12 @@ public sealed class ProductionService(FactoryDbContext source, IFscmGateway fscm
             }
             var product = await fscm.ProductAsync(data.ProductId, accessToken, ct);
             if (product.Status != "Published") throw FactoryException.Validation("Chọn SKU đang phát hành.");
+            if (await source.Set<FactoryLineSkuRule>().AnyAsync(x => x.ProductionLine == data.ProductionLine, ct) &&
+                !await source.Set<FactoryLineSkuRule>().AnyAsync(x => x.ProductionLine == data.ProductionLine && x.ProductId == data.ProductId, ct))
+                throw FactoryException.Validation($"SKU {product.Sku} không thuộc danh sách được phép sản xuất trên Line {data.ProductionLine}.");
+            var spec = await source.Set<FactorySkuPackagingSpec>().AsNoTracking().SingleOrDefaultAsync(x => x.ProductId == data.ProductId, ct);
+            if (spec is not null && (data.CartonsPerPallet != spec.CartonsPerPallet || data.UnitsPerCarton != spec.UnitsPerCarton))
+                throw FactoryException.Validation($"SKU {product.Sku} phải dùng quy chuẩn {spec.CartonsPerPallet} carton/pallet và {spec.UnitsPerCarton} sản phẩm/carton.");
             // Serializable isolation + unique key protects a daily sequence across all four lines.
             var sequence = (await source.Set<FactoryProductionBatch>().Where(x => x.FactoryCode == data.FactoryCode && x.ProductionDate == data.ProductionDate)
                 .MaxAsync(x => (int?)x.DailySequence, ct) ?? 0) + 1;

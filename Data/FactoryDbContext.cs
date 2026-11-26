@@ -49,5 +49,21 @@ public sealed class FactoryDbContext(DbContextOptions<FactoryDbContext> options)
         var u = model.Entity<FactoryProductUnit>();
         u.ToTable("FACTORY_PRODUCT_UNIT"); u.HasKey(x => x.Id); u.Property(x => x.Code).HasMaxLength(160); u.HasIndex(x => x.Code).IsUnique();
         u.HasOne<FactoryCarton>().WithMany().HasForeignKey(x => x.CartonId).OnDelete(DeleteBehavior.Restrict);
+        var spec = model.Entity<FactorySkuPackagingSpec>();
+        spec.ToTable("FACTORY_SKU_PACKAGING_SPEC", t => {
+            t.HasCheckConstraint("CK_FACTORY_PACKAGING_Units", "\"UnitsPerCarton\" BETWEEN 1 AND 1000");
+            t.HasCheckConstraint("CK_FACTORY_PACKAGING_Cartons", "\"CartonsPerPallet\" BETWEEN 1 AND 100");
+        });
+        spec.HasKey(x => x.ProductId);
+        spec.Property(x => x.Sku).HasMaxLength(50);
+        spec.Property(x => x.ProductName).HasMaxLength(300);
+        var rule = model.Entity<FactoryLineSkuRule>();
+        rule.ToTable("FACTORY_LINE_SKU_RULE", t =>
+            t.HasCheckConstraint("CK_FACTORY_LINE_SKU_Line", "\"ProductionLine\" IN ('A','B','C','D')"));
+        rule.HasKey(x => x.Id);
+        rule.Property(x => x.ProductionLine).HasMaxLength(1);
+        rule.Property(x => x.Sku).HasMaxLength(50);
+        rule.Property(x => x.ProductName).HasMaxLength(300);
+        rule.HasIndex(x => new { x.ProductionLine, x.ProductId }).IsUnique();
     }
 }

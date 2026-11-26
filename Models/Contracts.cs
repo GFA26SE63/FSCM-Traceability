@@ -10,6 +10,9 @@ public sealed record PalletDispatchInfo(Guid PalletId, Guid? DispatchNoteId, str
 
 public sealed record SimulateProductionRequest(string FactoryCode, string ProductionLine, Guid ProductId,
     DateOnly ProductionDate, DateOnly ExpirationDate, int PalletCount, int CartonsPerPallet, int UnitsPerCarton);
+public sealed record UpsertPackagingSpecRequest(Guid ProductId, int UnitsPerCarton, int CartonsPerPallet);
+public sealed record SetLineSkusRequest(string ProductionLine, Guid[] ProductIds);
+public sealed record ProductionStandardsResponse(FactorySkuPackagingSpec[] PackagingSpecs, FactoryLineSkuRule[] LineRules);
 public sealed record FactoryBatchView(FactoryProductionBatch Batch, string Sku, string ProductName, FactoryPallet[] Pallets, int CartonCount, int UnitCount);
 public sealed record PalletManifest(FactoryPallet Pallet, FactoryProductionBatch Batch, string Sku, string ProductName, FactoryCarton[] Cartons);
 public sealed record SourceTrace(FactoryProductionBatch Batch, string Sku, FactoryPallet? Pallet, FactoryCarton? Carton,
