@@ -1,7 +1,7 @@
 const $ = id => document.getElementById(id);
 const page = ({ '/': 'production', '/production': 'production', '/issuance': 'issuance', '/traceability': 'traceability', '/master-data': 'master-data' })[location.pathname] || 'production';
 const pageTitles = { production: 'Điều hành traceability', issuance: 'Phát hành đến kho', traceability: 'Truy xuất nguồn gốc', 'master-data': 'Cấu hình Master Data' };
-let batches = [], warehouses = [], catalogProducts = [], standards = { packagingSpecs: [], lineRules: [] }, editingRuleLine = 'A', ruleDraftIds = new Set(), selected = '', busy = false, operation = null, batchView = null;
+let batches = [], warehouses = [], catalogProducts = [], standards = { packagingSpecs: [], lineRules: [] }, editingRuleLine = 'A', ruleDraftIds = new Set(), skuPickerTarget = 'production', selected = '', busy = false, operation = null, batchView = null;
 let readyPallets = [], selectedReadyPalletIds = new Set(), dispatchNotes = [];
 let currentIssuanceSubtab = 'ready-pallets';
 let mapping = { level: 'cartons', pallet: '', carton: '', search: '', page: 1, pageSize: 50 };
@@ -483,17 +483,76 @@ if ($('btn-create-dispatch')) $('btn-create-dispatch').onclick = async () => {
   });
 };
 
-function renderSkuOptionsForLine() {
-  if (!$('products')) return;
-  const line = $('production-line')?.value || 'A';
-  const current = $('products').value;
+function getAllowedSkusForLine(line) {
   const lineProductIds = new Set(standards.lineRules.filter(r => r.productionLine === line).map(r => r.productId));
   const published = catalogProducts.filter(p => p.status === 'Published');
-  const filtered = lineProductIds.size > 0 ? published.filter(p => lineProductIds.has(p.id)) : published;
-  const placeholder = lineProductIds.size > 0 ? `Chọn SKU (Line ${line} · ${filtered.length} SKU)` : 'Chọn SKU đang phát hành';
-  $('products').replaceChildren(new Option(placeholder, ''));
-  filtered.forEach(p => $('products').append(new Option(p.sku + ' · ' + p.name, p.id)));
-  $('products').value = filtered.some(p => p.id === current) ? current : '';
+  return { lineProductIds, items: lineProductIds.size > 0 ? published.filter(p => lineProductIds.has(p.id)) : published };
+}
+
+function setProductionSku(productId) {
+  if (!$('products')) return;
+  const line = $('production-line')?.value || 'A';
+  const { lineProductIds, items } = getAllowedSkusForLine(line);
+  const found = items.find(p => p.id === productId);
+  $('products').value = found ? found.id : '';
+  if ($('production-sku-display')) {
+    $('production-sku-display').textContent = found
+      ? `${found.sku} · ${found.name}`
+      : (lineProductIds.size > 0 ? `Chọn SKU (Line ${line} · ${items.length} SKU)...` : 'Chọn SKU đang phát hành...');
+  }
+  applyPackagingSpecForSelectedSku();
+}
+
+function setSpecSku(productId) {
+  if (!$('spec-product')) return;
+  const found = catalogProducts.find(p => p.status === 'Published' && p.id === productId);
+  $('spec-product').value = found ? found.id : '';
+  if ($('spec-sku-display')) {
+    $('spec-sku-display').textContent = found ? `${found.sku} · ${found.name}` : 'Chọn SKU đang phát hành...';
+  }
+}
+
+function renderSkuOptionsForLine() {
+  setProductionSku($('products')?.value || '');
+}
+
+function openSkuPicker(target) {
+  skuPickerTarget = target;
+  if ($('sku-picker-title')) $('sku-picker-title').textContent = target === 'production'
+    ? `Chọn SKU cho Line ${$('production-line')?.value || 'A'}`
+    : 'Chọn SKU để cấu hình đóng gói';
+  if ($('sku-picker-search')) $('sku-picker-search').value = '';
+  renderSkuPickerTable();
+  $('sku-picker-dialog')?.showModal();
+  $('sku-picker-search')?.focus();
+}
+
+function renderSkuPickerTable() {
+  if (!$('sku-picker-table')) return;
+  const term = ($('sku-picker-search')?.value || '').trim().toLowerCase();
+  const line = $('production-line')?.value || 'A';
+  const source = skuPickerTarget === 'production'
+    ? getAllowedSkusForLine(line)
+    : { lineProductIds: new Set(), items: catalogProducts.filter(p => p.status === 'Published') };
+  const filtered = source.items.filter(p => !term || p.sku.toLowerCase().includes(term) || p.name.toLowerCase().includes(term));
+  if ($('sku-picker-scope')) {
+    $('sku-picker-scope').textContent = skuPickerTarget === 'production'
+      ? (source.lineProductIds.size > 0 ? `Line ${line} đang giới hạn ${source.items.length} SKU · Hiển thị ${filtered.length} kết quả` : `Hiển thị ${filtered.length} SKU đang phát hành`)
+      : `Hiển thị ${filtered.length} SKU đang phát hành`;
+  }
+  const currentId = skuPickerTarget === 'production' ? $('products')?.value : $('spec-product')?.value;
+  $('sku-picker-table').replaceChildren(table(['Mã SKU', 'Tên sản phẩm', 'Quy chuẩn đóng gói', 'Thao tác'], filtered.map(p => {
+    const spec = standards.packagingSpecs.find(s => s.productId === p.id);
+    const specText = spec ? `${spec.cartonsPerPallet} carton/pallet · ${spec.unitsPerCarton} sp/carton` : 'Chưa cấu hình';
+    const pickBtn = el('button', p.id === currentId ? 'Đang chọn' : 'Chọn', p.id === currentId ? 'btn-sm' : 'btn-sm primary');
+    pickBtn.type = 'button';
+    pickBtn.onclick = () => {
+      if (skuPickerTarget === 'production') setProductionSku(p.id);
+      else setSpecSku(p.id);
+      $('sku-picker-dialog')?.close();
+    };
+    return [code(p.sku), p.name, specText, pickBtn];
+  })));
 }
 
 function applyPackagingSpecForSelectedSku() {
@@ -546,18 +605,13 @@ function renderRuleSkusTable() {
 }
 
 function renderStandardsDialog() {
-  if ($('spec-product')) {
-    const cur = $('spec-product').value;
-    $('spec-product').replaceChildren(new Option('Chọn SKU đang phát hành', ''));
-    catalogProducts.filter(p => p.status === 'Published').forEach(p => $('spec-product').append(new Option(`${p.sku} · ${p.name}`, p.id)));
-    $('spec-product').value = cur;
-  }
+  setSpecSku($('spec-product')?.value || '');
   if ($('packaging-specs-table')) {
     $('packaging-specs-table').replaceChildren(table(['SKU', 'Tên sản phẩm', 'Carton / pallet', 'SP / carton', 'Thao tác'], standards.packagingSpecs.map(s => {
       const actions = el('div', null, 'row-actions');
       const editBtn = el('button', 'Sửa', 'btn-sm');
       editBtn.type = 'button';
-      editBtn.onclick = () => { $('spec-product').value = s.productId; $('spec-cartons').value = s.cartonsPerPallet; $('spec-units').value = s.unitsPerCarton; };
+      editBtn.onclick = () => { setSpecSku(s.productId); $('spec-cartons').value = s.cartonsPerPallet; $('spec-units').value = s.unitsPerCarton; };
       const delBtn = el('button', 'Xóa', 'btn-sm');
       delBtn.type = 'button';
       delBtn.onclick = () => run(async () => {
@@ -615,8 +669,11 @@ function total() {
 }
 if ($('production-date')) $('production-date').value = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Ho_Chi_Minh' });
 if ($('production-form')) { $('production-form').oninput = total; total(); }
-if ($('production-line')) $('production-line').onchange = () => { renderSkuOptionsForLine(); applyPackagingSpecForSelectedSku(); };
-if ($('products')) $('products').onchange = () => applyPackagingSpecForSelectedSku();
+if ($('production-line')) $('production-line').onchange = () => { renderSkuOptionsForLine(); };
+if ($('btn-pick-production-sku')) $('btn-pick-production-sku').onclick = () => openSkuPicker('production');
+if ($('btn-pick-spec-sku')) $('btn-pick-spec-sku').onclick = () => openSkuPicker('spec');
+if ($('close-sku-picker')) $('close-sku-picker').onclick = () => $('sku-picker-dialog')?.close();
+if ($('sku-picker-search')) $('sku-picker-search').oninput = () => renderSkuPickerTable();
 if ($('close-line-sku-dialog')) $('close-line-sku-dialog').onclick = () => $('line-sku-dialog')?.close();
 if ($('cancel-line-sku-dialog')) $('cancel-line-sku-dialog').onclick = () => $('line-sku-dialog')?.close();
 if ($('rule-sku-search')) $('rule-sku-search').oninput = () => renderRuleSkusTable();
@@ -644,6 +701,7 @@ if ($('btn-save-line-skus')) $('btn-save-line-skus').onclick = () => {
 };
 if ($('packaging-spec-form')) $('packaging-spec-form').onsubmit = e => {
   e.preventDefault();
+  if (!$('spec-product')?.value) { notice('Vui lòng chọn SKU trước khi lưu quy chuẩn.', true); return; }
   run(async () => {
     await api('/api/standards/packaging', 'POST', {
       productId: $('spec-product').value,
@@ -655,7 +713,7 @@ if ($('packaging-spec-form')) $('packaging-spec-form').onsubmit = e => {
   });
 };
 if ($('login-form')) $('login-form').onsubmit = e => { e.preventDefault(); run(async () => { const data = Object.fromEntries(new FormData(e.target)); const user = await api('/api/session/login', 'POST', data); e.target.reset(); signedIn(user); await loadCatalog(); await refresh(); await restoreBatchView(); notice(''); }); };
-if ($('production-form')) $('production-form').onsubmit = e => { e.preventDefault(); run(async () => {
+if ($('production-form')) $('production-form').onsubmit = e => { e.preventDefault(); if (!$('products')?.value) { notice('Vui lòng chọn SKU trước khi sản xuất.', true); return; } run(async () => {
   const data = Object.fromEntries(new FormData(e.target)); ['palletCount', 'cartonsPerPallet', 'unitsPerCarton'].forEach(k => data[k] = Number(data[k]));
   const fingerprint = JSON.stringify(data); if (operation?.fingerprint !== fingerprint) operation = { fingerprint, key: crypto.randomUUID() };
   const result = await api('/api/batches/simulate', 'POST', data, operation.key); operation = null; await refresh(); await openBatch(result.id); notice('Đã cấp batch, serial, carton và pallet tại nhà máy. Bấm "In QR mẻ" để in nhãn QR. Hàng chưa được nhập tồn FSCM.');

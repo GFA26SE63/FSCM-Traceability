@@ -4,8 +4,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>Nhà máy · FSCM Traceability</title>
-    <link rel="stylesheet" href="/app.css?v=master-data-2" />
-    <script src="/app.js?v=master-data-2" defer></script>
+    <link rel="stylesheet" href="/app.css?v=master-data-3" />
+    <script src="/app.js?v=master-data-3" defer></script>
   </head>
   <body>
     <header>
@@ -101,11 +101,14 @@
                   <option>D</option>
                 </select></label
               >
-              <label class="wide"
-                >SKU<select name="productId" id="products" required>
-                  <option value="">Chọn SKU</option>
-                </select></label
-              >
+              <div class="wide picker-field">
+                <span class="field-label">SKU</span>
+                <input type="hidden" name="productId" id="products" required />
+                <button type="button" id="btn-pick-production-sku" class="picker-trigger">
+                  <span id="production-sku-display">Chọn SKU đang phát hành...</span>
+                  <span class="picker-action">Tìm &amp; chọn</span>
+                </button>
+              </div>
               <label
                 >Ngày sản xuất<input
                   name="productionDate"
@@ -319,7 +322,14 @@
             <h3>2. Quy chuẩn đóng gói theo SKU</h3>
             <p class="muted">Khai báo số lượng chuẩn để hệ thống tự động điền và khóa khi tạo mẻ sản xuất.</p>
             <form id="packaging-spec-form" class="standards-form">
-              <label class="wide">SKU<select id="spec-product" required><option value="">Chọn SKU</option></select></label>
+              <div class="wide picker-field">
+                <span class="field-label">SKU</span>
+                <input type="hidden" id="spec-product" required />
+                <button type="button" id="btn-pick-spec-sku" class="picker-trigger">
+                  <span id="spec-sku-display">Chọn SKU đang phát hành...</span>
+                  <span class="picker-action">Tìm &amp; chọn</span>
+                </button>
+              </div>
               <label>Carton / pallet<input id="spec-cartons" type="number" min="1" max="100" step="1" value="10" required /></label>
               <label>Sản phẩm / carton<input id="spec-units" type="number" min="1" max="1000" step="1" value="12" required /></label>
               <button class="primary">Lưu quy chuẩn SKU</button>
@@ -327,6 +337,20 @@
             <div id="packaging-specs-table" class="table-wrap"></div>
           </div>
         </section>
+        <dialog id="sku-picker-dialog" class="line-sku-dialog" aria-labelledby="sku-picker-title">
+          <div class="dialog-header">
+            <div>
+              <span class="eyebrow">CHỌN SẢN PHẨM</span>
+              <h2 id="sku-picker-title">Chọn SKU</h2>
+            </div>
+            <button type="button" id="close-sku-picker">Đóng</button>
+          </div>
+          <div class="line-dialog-toolbar">
+            <input id="sku-picker-search" placeholder="Tìm nhanh theo mã SKU hoặc tên sản phẩm..." autocomplete="off" />
+          </div>
+          <p id="sku-picker-scope" class="muted"></p>
+          <div id="sku-picker-table" class="table-wrap rule-skus-table-wrap"></div>
+        </dialog>
         <dialog id="line-sku-dialog" class="line-sku-dialog" aria-labelledby="line-sku-dialog-title">
           <div class="dialog-header">
             <div>

@@ -321,11 +321,16 @@ test('line-SKU filtering and packaging spec auto-fill work on production form', 
     };
   `);
   app.nodes['production-line'].value = 'A';
-  app.run('renderSkuOptionsForLine();');
-  assert.deepEqual(app.nodes.products.children.map(o => o.value), ['', 'sku-1']);
+  app.run(`openSkuPicker('production');`);
+  assert.equal(app.nodes['sku-picker-dialog'].open, true);
+  assert.match(app.nodes['sku-picker-table'].textContent, /SKU001/);
+  assert.doesNotMatch(app.nodes['sku-picker-table'].textContent, /SKU002/);
 
-  app.nodes.products.value = 'sku-1';
-  app.run('applyPackagingSpecForSelectedSku();');
+  const pickBtn = find(app.nodes['sku-picker-table'], 'Chọn');
+  assert.ok(pickBtn);
+  pickBtn.onclick();
+  assert.equal(app.nodes['sku-picker-dialog'].open, false);
+  assert.equal(app.nodes.products.value, 'sku-1');
   assert.equal(app.nodes['cartons-per-pallet'].value, 40);
   assert.equal(app.nodes['units-per-carton'].value, 24);
   assert.equal(app.nodes['cartons-per-pallet'].readOnly, true);
@@ -333,10 +338,10 @@ test('line-SKU filtering and packaging spec auto-fill work on production form', 
   assert.match(app.nodes['packaging-spec-hint'].textContent, /40 carton\/pallet/);
 
   app.nodes['production-line'].value = 'B';
-  app.run('renderSkuOptionsForLine(); applyPackagingSpecForSelectedSku();');
-  assert.deepEqual(app.nodes.products.children.map(o => o.value), ['', 'sku-1', 'sku-2']);
-  app.nodes.products.value = 'sku-2';
-  app.run('applyPackagingSpecForSelectedSku();');
+  app.run(`openSkuPicker('production');`);
+  assert.match(app.nodes['sku-picker-table'].textContent, /SKU001/);
+  assert.match(app.nodes['sku-picker-table'].textContent, /SKU002/);
+  app.run(`setProductionSku('sku-2');`);
   assert.equal(app.nodes['cartons-per-pallet'].readOnly, false);
   assert.equal(app.nodes['units-per-carton'].readOnly, false);
 
