@@ -198,11 +198,11 @@ test('dispatch form sends only selected packed pallets and excludes already disp
 
 test('batch list and detail dialog offer whole-batch QR sheets', async () => {
   const app = await setup(); await app.run('refresh()');
-  const listLink = findLink(app.nodes.batches, 'In QR mẻ');
+  const listLink = findLink(app.nodes.batches, 'In QR lô');
   assert.ok(listLink); assert.equal(listLink.href, '/api/batches/' + batchId + '/labels'); assert.equal(listLink.target, '_blank');
   assert.ok(find(app.nodes.batches, 'Xem chi tiết'));
   await app.run(`openBatch('${batchId}')`);
-  assert.equal(findLink(app.nodes['batch-detail'], 'In QR mẻ (batch + pallet)').href, '/api/batches/' + batchId + '/labels');
+  assert.equal(findLink(app.nodes['batch-detail'], 'In QR lô (batch + pallet)').href, '/api/batches/' + batchId + '/labels');
   assert.equal(findLink(app.nodes['batch-detail'], 'In QR đầy đủ (kèm carton)').href, '/api/batches/' + batchId + '/labels?cartons=true');
 });
 
