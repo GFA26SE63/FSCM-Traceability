@@ -97,7 +97,7 @@ function badge(statusKey) {
   return el('span', meta.text, 'badge ' + meta.badge);
 }
 function batchLabelUrl(id, cartons = false) { return '/api/batches/' + encodeURIComponent(id) + '/labels' + (cartons ? '?cartons=true' : ''); }
-function batchActions(id) { const actions = el('div', null, 'row-actions'); actions.append(button('Xem chi tiết', () => openBatch(id)), link('In QR mẻ', batchLabelUrl(id))); return actions; }
+function batchActions(id) { const actions = el('div', null, 'row-actions'); actions.append(button('Xem chi tiết', () => openBatch(id)), link('In QR lô', batchLabelUrl(id))); return actions; }
 function warehouseName(id) { return warehouses.find(w => w.id === id)?.name || 'Chưa phát hành'; }
 
 function setIssuanceSubtab(tabName) {
@@ -117,7 +117,7 @@ function setIssuanceSubtab(tabName) {
 async function refresh() {
   batches = await api('/api/batches');
   if ($('stats')) {
-    $('stats').replaceChildren(...[['Mẻ sản xuất gần đây', batches.length], ['Pallet đã đóng', batches.reduce((n, b) => n + b.pallets.length, 0)], ['Pallet chờ kho nhận', batches.reduce((n, b) => n + b.pallets.filter(p => p.status === 'Dispatched').length, 0)]].map(([label, value]) => { const d = el('div', label, 'stat'); d.append(el('strong', value)); return d; }));
+    $('stats').replaceChildren(...[['Lô sản xuất gần đây', batches.length], ['Pallet đã đóng', batches.reduce((n, b) => n + b.pallets.length, 0)], ['Pallet chờ kho nhận', batches.reduce((n, b) => n + b.pallets.filter(p => p.status === 'Dispatched').length, 0)]].map(([label, value]) => { const d = el('div', label, 'stat'); d.append(el('strong', value)); return d; }));
   }
   if ($('batches')) {
     $('batches').replaceChildren(table(['Batch', 'SKU / line', 'NSX / HSD', 'Pallet / carton / sản phẩm', 'Thao tác'], batches.map(b => [code(b.batch.code), b.sku + ' · ' + b.batch.productionLine, date(b.batch.productionDate) + ' / ' + date(b.batch.expirationDate), `${b.pallets.length} / ${b.cartonCount} / ${b.unitCount}`, batchActions(b.batch.id)])));
@@ -169,7 +169,7 @@ function renderReadyPallets() {
     $('btn-create-dispatch').disabled = selectedReadyPalletIds.size === 0 || !warehouseChosen;
   }
 
-  $('ready-pallets-table').replaceChildren(table(['Chọn', 'Mã Pallet', 'Mã Mẻ (BID)', 'SKU · Sản phẩm', 'Line', 'NSX / HSD', 'Thùng', 'Sản phẩm', 'Thao tác'], filtered.map(p => {
+  $('ready-pallets-table').replaceChildren(table(['Chọn', 'Mã Pallet', 'Mã Lô (BID)', 'SKU · Sản phẩm', 'Line', 'NSX / HSD', 'Thùng', 'Sản phẩm', 'Thao tác'], filtered.map(p => {
     const chk = el('input'); chk.type = 'checkbox'; chk.className = 'pallet-check';
     chk.checked = selectedReadyPalletIds.has(p.palletId);
     chk.onchange = () => {
@@ -247,7 +247,7 @@ async function openDispatchNote(id) {
   const content = $('dispatch-detail-content');
   content.replaceChildren(grid, el('h3', 'Danh sách pallet xuất kho trong phiếu'));
 
-  content.append(table(['STT', 'Mã Pallet', 'Mã Mẻ (BID)', 'SKU · Sản phẩm', 'NSX / HSD', 'Thùng', 'SP', 'Trạng thái tại kho'], data.pallets.map((p, idx) => {
+  content.append(table(['STT', 'Mã Pallet', 'Mã Lô (BID)', 'SKU · Sản phẩm', 'NSX / HSD', 'Thùng', 'SP', 'Trạng thái tại kho'], data.pallets.map((p, idx) => {
     const pStatusText = p.status === 'Received' ? 'Đã nhận kho' : 'Đang vận chuyển';
     const pBadgeClass = p.status === 'Received' ? 'badge-success' : 'badge-warning';
     return [
@@ -272,7 +272,7 @@ async function openBatch(id, reset = true) {
   const changed = id !== selected;
   if (reset || changed) mapping = { level: 'cartons', pallet: '', carton: '', search: '', page: 1, pageSize: 50 };
   selected = id; batchView = null;
-  $('batch-title').textContent = 'Đang tải chi tiết mẻ…'; $('batch-detail').replaceChildren(); $('mapping-results').replaceChildren();
+  $('batch-title').textContent = 'Đang tải chi tiết lô…'; $('batch-detail').replaceChildren(); $('mapping-results').replaceChildren();
   if (!$('batch-dialog').open) $('batch-dialog').showModal();
   const loaded = await api('/api/batches/' + encodeURIComponent(id));
   if (!$('batch-dialog').open || selected !== id) return;
@@ -286,7 +286,7 @@ function renderBatch() {
     detail('NSX / HSD', date(view.batch.productionDate) + ' / ' + date(view.batch.expirationDate)),
     detail('Tổng mã đã cấp', `${view.pallets.length} pallet · ${view.cartonCount} carton · ${view.unitCount} sản phẩm`), detail('Đóng gói', view.batch.unitsPerCarton + ' sản phẩm/carton'));
   const labels = el('div', null, 'row-actions label-actions');
-  labels.append(link('In QR mẻ (batch + pallet)', batchLabelUrl(view.batch.id)), link('In QR đầy đủ (kèm carton)', batchLabelUrl(view.batch.id, true)));
+  labels.append(link('In QR lô (batch + pallet)', batchLabelUrl(view.batch.id)), link('In QR đầy đủ (kèm carton)', batchLabelUrl(view.batch.id, true)));
   section.replaceChildren(info, labels);
   const packed = view.pallets.some(p => p.pallet.status === 'Packed'), selectedPallets = new Set();
   if (packed) {
@@ -309,7 +309,7 @@ function renderBatch() {
       const chosen = view.pallets.filter(row => selectedPallets.has(row.pallet.id));
       const ok = await confirmAction({
         title: 'Xác nhận xuất pallet sang kho',
-        message: `Phát hành ${chosen.length} pallet của mẻ ${view.batch.code} đến kho nhận?`,
+        message: `Phát hành ${chosen.length} pallet của lô ${view.batch.code} đến kho nhận?`,
         facts: [['Kho nhận', warehouseLabel(select.value)], ['Pallet', chosen.map(row => row.pallet.code).join(', ')],
           ['Số lượng', `${chosen.reduce((n, row) => n + row.cartonCount, 0)} carton · ${chosen.reduce((n, row) => n + row.unitCount, 0)} sản phẩm`],
           ['Xe / tài xế', `${transport.vehicleNumber} · ${transport.driverName}`]],
@@ -665,7 +665,7 @@ function total() {
   if (!$('production-form') || !$('production-total')) return;
   const data = new FormData($('production-form'));
   const cartons = Number(data.get('palletCount')) * Number(data.get('cartonsPerPallet'));
-  $('production-total').textContent = `${cartons} carton · ${cartons * Number(data.get('unitsPerCarton'))} sản phẩm (tối đa 50.000/mẻ)`;
+  $('production-total').textContent = `${cartons} carton · ${cartons * Number(data.get('unitsPerCarton'))} sản phẩm (tối đa 50.000/lô)`;
 }
 if ($('production-date')) $('production-date').value = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Ho_Chi_Minh' });
 if ($('production-form')) { $('production-form').oninput = total; total(); }
@@ -716,12 +716,12 @@ if ($('login-form')) $('login-form').onsubmit = e => { e.preventDefault(); run(a
 if ($('production-form')) $('production-form').onsubmit = e => { e.preventDefault(); if (!$('products')?.value) { notice('Vui lòng chọn SKU trước khi sản xuất.', true); return; } run(async () => {
   const data = Object.fromEntries(new FormData(e.target)); ['palletCount', 'cartonsPerPallet', 'unitsPerCarton'].forEach(k => data[k] = Number(data[k]));
   const fingerprint = JSON.stringify(data); if (operation?.fingerprint !== fingerprint) operation = { fingerprint, key: crypto.randomUUID() };
-  const result = await api('/api/batches/simulate', 'POST', data, operation.key); operation = null; await refresh(); await openBatch(result.id); notice('Đã cấp batch, serial, carton và pallet tại nhà máy. Bấm "In QR mẻ" để in nhãn QR. Hàng chưa được nhập tồn FSCM.');
+  const result = await api('/api/batches/simulate', 'POST', data, operation.key); operation = null; await refresh(); await openBatch(result.id); notice('Đã cấp batch, serial, carton và pallet tại nhà máy. Bấm "In QR lô" để in nhãn QR. Hàng chưa được nhập tồn FSCM.');
 }); };
 if ($('refresh')) $('refresh').onclick = () => run(async () => { await loadCatalog(); await refresh(); notice('Đã làm mới dữ liệu.'); });
 if ($('trace-form')) $('trace-form').onsubmit = e => { e.preventDefault(); run(async () => {
   const value = new FormData(e.target).get('code').trim(), t = await api('/api/trace?code=' + encodeURIComponent(value)), section = $('trace-result');
-  const info = el('div', null, 'detail-grid'); info.append(detail('Batch', t.batch.code), detail('SKU / line', t.sku + ' · ' + t.batch.productionLine), detail('NSX / HSD', date(t.batch.productionDate) + ' / ' + date(t.batch.expirationDate)), detail('Pallet gốc', t.pallet?.code || 'Tra theo batch'), detail('Carton', t.carton?.code || '—'), detail('Serial', t.unit?.code || '—')); section.replaceChildren(info, button('Mở chi tiết mẻ và mapping', () => openBatch(t.batch.id)));
+  const info = el('div', null, 'detail-grid'); info.append(detail('Batch', t.batch.code), detail('SKU / line', t.sku + ' · ' + t.batch.productionLine), detail('NSX / HSD', date(t.batch.productionDate) + ' / ' + date(t.batch.expirationDate)), detail('Pallet gốc', t.pallet?.code || 'Tra theo batch'), detail('Carton', t.carton?.code || '—'), detail('Serial', t.unit?.code || '—')); section.replaceChildren(info, button('Mở chi tiết lô và mapping', () => openBatch(t.batch.id)));
   section.append(el('p', t.pallet ? 'Trạng thái nhà máy: ' + status[t.pallet.status] + '. Vị trí tồn hiện tại và lịch sử chứng từ xem tại FSCM.' : t.cartonCodes.length + ' carton thuộc phạm vi truy xuất.'));
   section.append(table(['Carton trong phạm vi truy xuất'], t.cartonCodes.map(c => [code(c)])));
   if (t.units.length) section.append(table(['STT', 'Serial sản phẩm trong carton'], t.units.map(u => [u.sequence, code(u.code)]))); notice('');
