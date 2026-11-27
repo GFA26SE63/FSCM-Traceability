@@ -26,7 +26,7 @@
         <a id="nav-traceability" href="/traceability"><span class="nav-index">03</span><span>Truy xuất nguồn gốc</span></a>
         <a id="nav-master-data" href="/master-data"><span class="nav-index">04</span><span>Cấu hình Master Data</span></a>
       </nav>
-      <p class="sidebar-note">Quản lý mẻ, pallet và hành trình hàng hóa từ nhà máy đến kho.</p>
+      <p class="sidebar-note">Quản lý lô, pallet và hành trình hàng hóa từ nhà máy đến kho.</p>
     </aside>
     <main>
       <div id="notice" role="status" aria-live="polite"></div>
@@ -79,7 +79,7 @@
           <div class="section-title">
             <div>
               <span class="eyebrow">01 · SẢN XUẤT & ĐÓNG HÀNG</span>
-              <h2>Tạo mẻ sản xuất</h2>
+              <h2>Tạo lô sản xuất</h2>
             </div>
             <span class="pill">Một SKU / batch / pallet</span>
           </div>
@@ -169,7 +169,7 @@
             <div class="issuance-subtabs">
               <button type="button" id="tab-ready-pallets" class="subtab-btn active">Lập phiếu xuất xưởng (Xuất Pallet)</button>
               <button type="button" id="tab-dispatch-notes" class="subtab-btn">Sổ phiếu xuất kho nhà máy</button>
-              <button type="button" id="tab-batch-list" class="subtab-btn">Mẻ sản xuất gần đây</button>
+              <button type="button" id="tab-batch-list" class="subtab-btn">Lô sản xuất gần đây</button>
             </div>
           </div>
 
@@ -190,7 +190,7 @@
                 </div>
               </div>
               <div class="dispatch-filters-bar">
-                <input id="ready-search" placeholder="Tìm kiếm pallet, mẻ, SKU..." autocomplete="off" />
+                <input id="ready-search" placeholder="Tìm kiếm pallet, lô, SKU..." autocomplete="off" />
                 <select id="ready-sku-filter"><option value="">Tất cả SKU</option></select>
                 <select id="ready-line-filter"><option value="">Tất cả Line</option><option>A</option><option>B</option><option>C</option><option>D</option></select>
                 <div class="batch-select-actions">
@@ -212,17 +212,17 @@
             <div id="dispatch-notes-table" class="table-wrap"></div>
           </div>
 
-          <!-- View 3: Danh sách mẻ sản xuất (Batch list) -->
+          <!-- View 3: Danh sách lô sản xuất (Batch list) -->
           <div id="view-batch-list" class="issuance-view" hidden>
-            <p class="muted">Danh sách 100 mẻ sản xuất gần nhất tại nhà máy. Bấm &quot;Xem chi tiết&quot; để tra cứu mapping carton và serial sản phẩm.</p>
+            <p class="muted">Danh sách 100 lô sản xuất gần nhất tại nhà máy. Bấm &quot;Xem chi tiết&quot; để tra cứu mapping carton và serial sản phẩm.</p>
             <div id="batches" class="table-wrap"></div>
           </div>
         </section>
         <dialog id="batch-dialog" aria-labelledby="batch-title">
           <div class="dialog-header">
             <div>
-              <span class="eyebrow">CHI TIẾT MẺ & DANH SÁCH MAPPING</span>
-              <h2 id="batch-title">Mẻ sản xuất</h2>
+              <span class="eyebrow">CHI TIẾT LÔ & DANH SÁCH MAPPING</span>
+              <h2 id="batch-title">Lô sản xuất</h2>
             </div>
             <button type="button" id="close-batch">Đóng</button>
           </div>
@@ -309,7 +309,7 @@
               <span class="eyebrow">04 · CẤU HÌNH MASTER DATA</span>
               <h2>Quy chuẩn Line – SKU &amp; Đóng gói</h2>
             </div>
-            <span class="pill">Áp dụng tự động khi tạo mẻ</span>
+            <span class="pill">Áp dụng tự động khi tạo lô</span>
           </div>
 
           <div class="master-block">
@@ -320,7 +320,7 @@
 
           <div class="master-block">
             <h3>2. Quy chuẩn đóng gói theo SKU</h3>
-            <p class="muted">Khai báo số lượng chuẩn để hệ thống tự động điền và khóa khi tạo mẻ sản xuất.</p>
+            <p class="muted">Khai báo số lượng chuẩn để hệ thống tự động điền và khóa khi tạo lô sản xuất.</p>
             <form id="packaging-spec-form" class="standards-form">
               <div class="wide picker-field">
                 <span class="field-label">SKU</span>
