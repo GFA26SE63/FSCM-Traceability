@@ -26,7 +26,7 @@ public sealed class ProductionService(FactoryDbContext source, IFscmGateway fscm
             throw FactoryException.Validation("NSX không ở tương lai; HSD phải sau NSX và chưa hết hạn.");
         if (data.PalletCount is < 1 or > 100 || data.CartonsPerPallet is < 1 or > 100 || data.UnitsPerCarton is < 1 or > 1000 ||
             (long)data.PalletCount * data.CartonsPerPallet > 9999 || (long)data.PalletCount * data.CartonsPerPallet * data.UnitsPerCarton > 50000)
-            throw FactoryException.Validation("Mô phỏng tối đa 100 pallet, 100 carton/pallet và 50.000 sản phẩm/mẻ; tối đa 9.999 carton/mẻ.");
+            throw FactoryException.Validation("Mô phỏng tối đa 100 pallet, 100 carton/pallet và 50.000 sản phẩm/lô; tối đa 9.999 carton/lô.");
     }
 
     public async Task<FactoryBatchView[]> ListAsync(CancellationToken ct)
@@ -47,7 +47,7 @@ public sealed class ProductionService(FactoryDbContext source, IFscmGateway fscm
     public async Task<BatchDetail> DetailAsync(Guid id, CancellationToken ct)
     {
         var batch = await source.Set<FactoryProductionBatch>().AsNoTracking().SingleOrDefaultAsync(x => x.Id == id, ct)
-            ?? throw FactoryException.NotFound("Không tìm thấy mẻ sản xuất.");
+            ?? throw FactoryException.NotFound("Không tìm thấy lô sản xuất.");
         var pallets = await source.Set<FactoryPallet>().AsNoTracking().Where(x => x.ProductionBatchId == id).OrderBy(x => x.Code).ToArrayAsync(ct);
         var palletIds = pallets.Select(p => p.Id).ToArray();
         var cartonCounts = await source.Set<FactoryCarton>().Where(c => palletIds.Contains(c.PalletId)).GroupBy(c => c.PalletId)
@@ -66,7 +66,7 @@ public sealed class ProductionService(FactoryDbContext source, IFscmGateway fscm
     public async Task<BatchLabelSheet> BatchLabelsAsync(Guid id, bool includeCartons, CancellationToken ct)
     {
         var batch = await source.Set<FactoryProductionBatch>().AsNoTracking().SingleOrDefaultAsync(x => x.Id == id, ct)
-            ?? throw FactoryException.NotFound("Không tìm thấy mẻ sản xuất.");
+            ?? throw FactoryException.NotFound("Không tìm thấy lô sản xuất.");
         var pallets = await source.Set<FactoryPallet>().AsNoTracking().Where(x => x.ProductionBatchId == id).OrderBy(x => x.Code).ToArrayAsync(ct);
         var palletIds = pallets.Select(p => p.Id).ToArray();
         var cartons = await source.Set<FactoryCarton>().AsNoTracking().Where(c => palletIds.Contains(c.PalletId))
@@ -111,7 +111,7 @@ public sealed class ProductionService(FactoryDbContext source, IFscmGateway fscm
     public async Task<MappingPage> MappingAsync(Guid id, string level, string? pallet, string? carton, string? search, int page, int pageSize, CancellationToken ct)
     {
         ValidateMappingPage(level, page, pageSize);
-        if (!await source.Set<FactoryProductionBatch>().AnyAsync(x => x.Id == id, ct)) throw FactoryException.NotFound("Không tìm thấy mẻ sản xuất.");
+        if (!await source.Set<FactoryProductionBatch>().AnyAsync(x => x.Id == id, ct)) throw FactoryException.NotFound("Không tìm thấy lô sản xuất.");
         var rows = MappingQuery(id, level, pallet, carton, search);
         var count = await rows.CountAsync(ct);
         var ordered = rows.OrderBy(x => x.PalletCode).ThenBy(x => x.CartonCode);
@@ -498,7 +498,7 @@ public sealed class ProductionService(FactoryDbContext source, IFscmGateway fscm
             throw FactoryException.Validation("Chọn ít nhất một pallet, không trùng mã.");
         var pallets = await source.Set<FactoryPallet>().Where(x => x.ProductionBatchId == batchId && (palletIds == null || palletIds.Contains(x.Id))).ToArrayAsync(ct);
         if (palletIds is not null && pallets.Length != palletIds.Length)
-            throw FactoryException.Validation("Pallet đã chọn không thuộc mẻ này.");
+            throw FactoryException.Validation("Pallet đã chọn không thuộc lô này.");
         if (pallets.Length == 0) throw FactoryException.NotFound("Không tìm thấy batch nhà máy.");
         if (pallets.All(x => x.Status != "Packed" && x.DestinationWarehouseId == destination)) return batchId;
         if (pallets.Any(x => x.Status != "Packed")) throw FactoryException.Conflict("Pallet đã phát hành; không đổi kho đích. Chỉ chọn pallet chưa xuất.");

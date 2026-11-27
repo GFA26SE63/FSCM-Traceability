@@ -148,7 +148,7 @@ public static class FactoryLabels
         <tr>
           <th class='text-center' style='width: 40px;'>STT</th>
           <th>Mã Pallet (PID)</th>
-          <th>Mã Mẻ (BID)</th>
+          <th>Mã Lô (BID)</th>
           <th>SKU · Tên sản phẩm</th>
           <th class='text-center'>NSX / HSD</th>
           <th class='text-right'>Số thùng</th>
